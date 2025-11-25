@@ -1,14 +1,16 @@
 import fetch from "node-fetch";
 
-// Simple in-memory rate-limiter (per IP). For production, use Redis or persistent store.
+// Simple in-memory rate-limiter
 const rateLimitMap = new Map();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 30; // max requests per window per IP
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX = 30;
 
 function getClientIp(req) {
-  return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-         req.socket?.remoteAddress ||
-         "unknown";
+  return (
+    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+    req.socket?.remoteAddress ||
+    "unknown"
+  );
 }
 
 function isRateLimited(ip) {
@@ -22,11 +24,10 @@ function isRateLimited(ip) {
 
   entry.count += 1;
   rateLimitMap.set(ip, entry);
-
   return entry.count > RATE_LIMIT_MAX;
 }
 
-// Crisis patterns
+// Crisis detection text patterns
 const crisisPatterns = [
   /ฆ่าตัวตาย/i, /อยากตาย/i, /ทำร้ายตัวเอง/i,
   /suicide/i, /kill myself/i, /hurt myself/i
@@ -37,12 +38,14 @@ function detectCrisis(text) {
   return crisisPatterns.some(r => r.test(text));
 }
 
-// --- FIXED CORS (no duplicates, no blocking) ---
+// Allowed origins for CORS
 const ALLOWED_ORIGINS = [
   "https://www.mindfitness.co",
   "https://mindfitness.co",
   "http://www.mindfitness.co",
   "http://mindfitness.co",
+
+  // Optional
   "https://mindfitness-ai.vercel.app",
   "https://mindfitness-ai-backend-4lfy.vercel.app"
 ];
@@ -50,6 +53,7 @@ const ALLOWED_ORIGINS = [
 export default async function handler(req, res) {
   const origin = req.headers.origin || "";
 
+  // Set CORS headers for allowed origins
   if (ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
@@ -57,6 +61,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
+  // FIXED: Proper CORS preflight handling
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
@@ -73,12 +78,15 @@ export default async function handler(req, res) {
 
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
     if (!OPENAI_KEY) {
-      return res.status(500).json({ error: "Server misconfigured: missing OPENAI_API_KEY" });
+      return res.status(500).json({
+        error: "Server misconfigured: missing OPENAI_API_KEY"
+      });
     }
 
     const messages = req.body?.messages || [];
     const last = messages[messages.length - 1]?.content || "";
 
+    // Crisis detection
     if (detectCrisis(last)) {
       return res.json({
         crisis: true,
@@ -90,6 +98,7 @@ export default async function handler(req, res) {
       });
     }
 
+    // Moderation
     const modResp = await fetch("https://api.openai.com/v1/moderations", {
       method: "POST",
       headers: {
@@ -110,14 +119,16 @@ export default async function handler(req, res) {
       });
     }
 
+    // System prompt
     const systemPrompt = {
       role: "system",
       content: `You are an empathetic, non-judgmental mental health support assistant.
 You are NOT a clinician. Provide supportive listening only.
-If user expresses self-harm or danger, tell them to contact emergency services.
-Respond in Thai when user writes in Thai.`
+If the user expresses self-harm or danger, tell them to contact emergency services.
+Respond in Thai when the user writes in Thai.`
     };
 
+    // Chat completion payload
     const payload = {
       model: "gpt-4o-mini",
       messages: [systemPrompt, ...messages],
@@ -143,4 +154,3 @@ Respond in Thai when user writes in Thai.`
     return res.status(500).json({ error: "Server error" });
   }
 }
-
