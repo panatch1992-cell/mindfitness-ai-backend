@@ -27,17 +27,6 @@ function isRateLimited(ip) {
   return entry.count > RATE_LIMIT_MAX;
 }
 
-// Crisis detection text patterns
-const crisisPatterns = [
-  /ฆ่าตัวตาย/i, /อยากตาย/i, /ทำร้ายตัวเอง/i,
-  /suicide/i, /kill myself/i, /hurt myself/i
-];
-
-function detectCrisis(text) {
-  if (!text) return false;
-  return crisisPatterns.some(r => r.test(text));
-}
-
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
   "https://www.mindfitness.co",
@@ -51,16 +40,19 @@ const ALLOWED_ORIGINS = [
 export default async function handler(req, res) {
   const origin = req.headers.origin || "";
 
-  // Set CORS headers
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
+  // ALWAYS send these for CORS preflight success
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // FIX: Proper CORS preflight response
+  // If allowed origin → return it
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
+  // FIX 100% — always respond CORS to OPTIONS
   if (req.method === "OPTIONS") {
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
 
   if (req.method !== "POST") {
@@ -84,7 +76,16 @@ export default async function handler(req, res) {
     const last = messages[messages.length - 1]?.content || "";
 
     // Crisis detection
-    if (detectCrisis(last)) {
+    const crisis = [
+      /ฆ่าตัวตาย/i,
+      /อยากตาย/i,
+      /ทำร้ายตัวเอง/i,
+      /suicide/i,
+      /kill myself/i,
+      /hurt myself/i
+    ].some(r => r.test(last));
+
+    if (crisis) {
       return res.json({
         crisis: true,
         message: "CRISIS_DETECTED",
@@ -116,7 +117,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // System prompt
     const systemPrompt = {
       role: "system",
       content: `You are an empathetic, non-judgmental mental health support assistant.
@@ -125,7 +125,6 @@ If the user expresses self-harm or danger, tell them to contact emergency servic
 Respond in Thai when the user writes in Thai.`
     };
 
-    // Chat completion payload
     const payload = {
       model: "gpt-4o-mini",
       messages: [systemPrompt, ...messages],
@@ -151,4 +150,3 @@ Respond in Thai when the user writes in Thai.`
     return res.status(500).json({ error: "Server error" });
   }
 }
-
