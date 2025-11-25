@@ -36,13 +36,30 @@ function detectCrisis(text) {
   return crisisPatterns.some(r => r.test(text));
 }
 
+// CORS config
+const ALLOWED_ORIGINS = [
+  "https://www.mindfitness.co",
+  "https://mindfitness.co",
+  "http://www.mindfitness.co",
+  "http://mindfitness.co",
+  "https://mindfitness-ai.vercel.app",
+  "https://mindfitness-ai-backend-4lfy.vercel.app"
+];
+
 export default async function handler(req, res) {
-  // CORS check
   const origin = req.headers.origin || "";
-  if (!ALLOWED_ORIGINS.includes(origin)) {
-    res.status(403).json({ error: "CORS: origin not allowed" });
-    return;
+
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
   }
+
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
