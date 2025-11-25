@@ -1,6 +1,6 @@
 (function() {
   // ใช้ลิงก์หลักจากหน้า GitHub ของคุณ (Link ที่ถูกต้อง 100%)
-  const API_URL = "https://mindfitness-ai-backend.vercel.app/api/chat";
+  const API_URL = "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat";
   
   // 1. Inject Styles
   const style = document.createElement('style');
