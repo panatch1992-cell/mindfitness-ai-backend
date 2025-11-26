@@ -1,8 +1,8 @@
 (function() {
   // --- [CONFIG: ตั้งค่าของคุณที่นี่] ---
   const API_URL = "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; 
-  const SOCIAL_LINK = "https://lin.ee/BUzH2xD"; // ใส่ลิงก์ LINE OA
-  const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg"; // ใส่ลิงก์รูปโลโก้
+  const SOCIAL_LINK = "https://lin.ee/BUzH2xD"; // ใส่ลิงก์ LINE OA ของคุณ
+  const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg"; // ใส่ลิงก์รูปโลโก้ของคุณ (ผมเอาจากรูปที่คุณส่งมาใส่ให้แล้วครับ)
   const PSYCHIATRIST_LINK = "https://www.facebook.com/share/p/1BuBPPWjGH/"; // ลิงก์หมอ
   const THEME_COLOR = "#007BFF"; // สีฟ้า
   // -----------------------------------
@@ -22,19 +22,16 @@
     #mf-header-top { display: flex; align-items: center; width: 100%; }
     #mf-header img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid white; margin-right: 10px; }
     #mf-bot-info { flex: 1; overflow: hidden; }
-    #mf-bot-name { font-weight: bold; font-size: 18px; }
+    #mf-bot-name { font-weight: bold; font-size: 18px; } /* ชื่อบอท */
     
-    /* ลิงก์หาหมอ */
     #mf-doc-link { font-size: 12px; color: white; text-decoration: underline; opacity: 0.9; cursor: pointer; display: inline-block; margin-top: 2px; }
     #mf-doc-link:hover { opacity: 1; color: #ffeb3b; }
 
     #mf-header-actions { display: flex; gap: 10px; }
     #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: white; opacity: 0.9; padding: 0; text-decoration: none; display: flex; align-items: center; }
 
-    /* คำเตือน */
     #mf-disclaimer { font-size: 11px; color: rgba(255,255,255,0.9); line-height: 1.3; background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px; margin-top: 5px; }
 
-    /* Dropdown Case */
     #mf-controls { margin-top: 5px; }
     .mf-select { width: 100%; background: white; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 8px; font-size: 14px; font-family: 'Sarabun', sans-serif; cursor: pointer; outline: none; }
 
@@ -61,7 +58,7 @@
         <div id="mf-header-top">
             <img src="${AVATAR_URL}" alt="Avatar">
             <div id="mf-bot-info">
-                <div id="mf-bot-name">MindFitness</div>
+                <div id="mf-bot-name">MindBot</div>
                 <a id="mf-doc-link" href="${PSYCHIATRIST_LINK}" target="_blank">🏥 พบจิตแพทย์ (คลิก)</a>
             </div>
             <div id="mf-header-actions">
@@ -88,7 +85,7 @@
       </div>
       
       <div id="mf-messages">
-        <div class="mf-msg bot">สวัสดีครับ ผมคือเพื่อนที่มีประสบการณ์ร่วมกับคุณ 🤝<br>วันนี้อยากคุยเรื่องไหน เลือกหัวข้อด้านบนได้เลยนะครับ</div>
+        <div class="mf-msg bot">สวัสดีครับ ผม <b>MindBot</b> เพื่อนรับฟังของคุณ 🤖<br>วันนี้อยากคุยเรื่องไหน เลือกหัวข้อด้านบนได้เลยนะครับ</div>
       </div>
 
       <div id="mf-input-area">
