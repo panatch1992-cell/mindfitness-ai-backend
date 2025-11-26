@@ -3,7 +3,7 @@
   const API_URL = "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; // เช็ค URL ให้ตรง!
   const SOCIAL_LINK = "https://lin.ee/BUzH2xD"; 
   const THEME_COLOR = "#007BFF"; 
-
+const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
   // 1. Inject Styles
   const style = document.createElement('style');
   style.innerHTML = `
