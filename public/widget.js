@@ -1,7 +1,7 @@
 (function() {
-  // ใช้ลิงก์หลักจากหน้า GitHub ของคุณ (Link ที่ถูกต้อง 100%)
+  // --- ตรวจสอบ URL ให้ตรงกับ Vercel ของคุณ (-4lfy หรือชื่อจริง) ---
   const API_URL = "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat";
-  
+
   // 1. Inject Styles
   const style = document.createElement('style');
   style.innerHTML = `
@@ -9,13 +9,24 @@
     #mf-toggle-btn { width: 60px; height: 60px; border-radius: 50%; background-color: #6A4BFF; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; border: none; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
     #mf-toggle-btn:hover { transform: scale(1.05); }
     #mf-chat-window { display: none; width: 350px; height: 500px; background: white; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.2); flex-direction: column; overflow: hidden; position: absolute; bottom: 80px; right: 0; border: 1px solid #eee; }
+    
+    /* Header ปรับปรุงใหม่ */
     #mf-header { background: #6A4BFF; color: white; padding: 15px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
     #mf-header img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid white; }
+    #mf-bot-name-container { flex: 1; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    #mf-edit-icon { font-size: 12px; opacity: 0.7; }
+    #mf-bot-name-container:hover #mf-edit-icon { opacity: 1; text-decoration: underline; }
+
     #mf-messages { flex: 1; padding: 15px; overflow-y: auto; background: #f8f9fa; display: flex; flex-direction: column; gap: 10px; }
     .mf-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; word-wrap: break-word; }
     .mf-msg.user { align-self: flex-end; background: #6A4BFF; color: white; border-bottom-right-radius: 2px; }
     .mf-msg.bot { align-self: flex-start; background: #E9ECEF; color: #333; border-bottom-left-radius: 2px; }
     .mf-msg.system { align-self: center; background: #ffeeba; color: #856404; font-size: 12px; text-align: center; width: 95%; margin: 5px 0; }
+    
+    #mf-chips-area { padding: 10px 15px; background: #fff; border-top: 1px solid #f0f0f0; display: flex; flex-wrap: wrap; gap: 8px; }
+    .mf-chip { background: #f1f3f5; color: #495057; border: 1px solid #dee2e6; padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; transition: all 0.2s; user-select: none; }
+    .mf-chip:hover { background: #6A4BFF; color: white; border-color: #6A4BFF; }
+
     #mf-input-area { padding: 12px; border-top: 1px solid #eee; display: flex; gap: 8px; background: white; }
     #mf-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; font-size: 14px; }
     #mf-input:focus { border-color: #6A4BFF; }
@@ -31,12 +42,24 @@
     <div id="mf-chat-window">
       <div id="mf-header">
         <img src="https://files.catbox.moe/k4s55g.jpg" alt="Avatar">
-        <span>MindFitness Therapist</span>
+        <div id="mf-bot-name-container" onclick="renameBot()" title="คลิกเพื่อตั้งชื่อบอท">
+            <span id="mf-bot-name">MindFitness</span>
+            <span id="mf-edit-icon">✏️</span>
+        </div>
         <span style="margin-left:auto; cursor:pointer; font-size:18px;" id="mf-close-btn">×</span>
       </div>
       <div id="mf-messages">
-        <div class="mf-msg bot">สวัสดีครับ มีเรื่องอะไรไม่สบายใจ เล่าให้ผมฟังได้นะครับ พื้นที่นี้ปลอดภัยสำหรับคุณเสมอ</div>
+        <div class="mf-msg bot">สวัสดีครับ ผมคือเพื่อนรับฟังของคุณ 😊<br>คุณสามารถ <b>คลิกที่ชื่อด้านบน</b> เพื่อตั้งชื่อเล่นให้ผมได้นะครับ</div>
       </div>
+      
+      <div id="mf-chips-area">
+        <span class="mf-chip" onclick="sendChip('เครียดเรื่องงาน/เรียน')">😓 เครียดงาน/เรียน</span>
+        <span class="mf-chip" onclick="sendChip('ความสัมพันธ์/ความรัก')">💔 ความรัก/ครอบครัว</span>
+        <span class="mf-chip" onclick="sendChip('รู้สึกหมดไฟ (Burnout)')">🔋 รู้สึกหมดไฟ</span>
+        <span class="mf-chip" onclick="sendChip('นอนไม่หลับ/คิดมาก')">🌙 นอนไม่หลับ</span>
+        <span class="mf-chip" onclick="sendChip('แค่อยากระบายเฉยๆ')">🗣️ แค่อยากระบาย</span>
+      </div>
+
       <div id="mf-input-area">
         <input type="text" id="mf-input" placeholder="พิมพ์ข้อความ...">
         <button id="mf-send-btn">ส่ง</button>
@@ -64,18 +87,47 @@
   function appendMessage(role, text) {
     const div = document.createElement('div');
     div.className = `mf-msg ${role}`;
-    div.innerText = text;
+    div.innerHTML = text;
     msgContainer.appendChild(div);
     msgContainer.scrollTop = msgContainer.scrollHeight;
+  }
+
+  // ฟังก์ชันเปลี่ยนชื่อบอท
+  window.renameBot = function() {
+    const currentName = document.getElementById('mf-bot-name').innerText;
+    const newName = prompt("ตั้งชื่อเล่นให้ผมใหม่ได้เลยครับ:", currentName);
+    
+    if (newName && newName.trim() !== "") {
+        // 1. เปลี่ยนชื่อหน้าจอ
+        document.getElementById('mf-bot-name').innerText = newName;
+        
+        // 2. บอก AI ให้รู้ตัว (ส่ง System Message เงียบๆ)
+        messageHistory.push({ 
+            role: "system", 
+            content: `[System Update] The user has renamed you to "${newName}". From now on, refer to yourself as "${newName}" in a friendly Thai male tone.` 
+        });
+        
+        // 3. แจ้งเตือนในแชท
+        appendMessage('system', `เปลี่ยนชื่อเป็น "${newName}" เรียบร้อยครับ`);
+    }
+  }
+
+  window.sendChip = function(text) {
+    input.value = text;
+    sendMessage();
   }
 
   async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
+    
     appendMessage('user', text);
     input.value = '';
     sendBtn.disabled = true;
     messageHistory.push({ role: "user", content: text });
+
+    const chipsArea = document.getElementById('mf-chips-area');
+    if(chipsArea) chipsArea.style.display = 'none';
 
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'mf-msg bot';
@@ -94,7 +146,7 @@
 
       if (data.crisis) {
         appendMessage('system', "⚠️ ตรวจพบความเสี่ยง: หากคุณรู้สึกไม่ไหว กรุณาติดต่อสายด่วนสุขภาพจิต 1323 ได้ตลอด 24 ชม.");
-        if (data.resources) data.resources.forEach(r => appendMessage('bot', `${r.name}: ${r.info}`));
+        if (data.resources) data.resources.forEach(r => appendMessage('bot', `📞 ${r.name}: ${r.info}`));
       } else if (data.ai?.choices) {
         const reply = data.ai.choices[0].message.content;
         appendMessage('bot', reply);
