@@ -7,7 +7,7 @@ const config = {
 };
 const client = new Client(config);
 // ใส่ลิงก์ QR Code ของคุณตรงนี้
-const QR_CODE_URL = "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg"; 
+const QR_CODE_URL = "https://files.catbox.moe/7v14nh.jpg"; 
 
 function createQuickReply(items) {
   return { items: items.map(item => ({ type: "action", action: { type: "message", label: item.label, text: item.text || item.label } })) };
