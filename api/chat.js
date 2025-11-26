@@ -1,27 +1,21 @@
 import fetch from "node-fetch";
 
 // --- Configuration ---
-// รายชื่อโดเมนที่อนุญาตให้เรียก API นี้ได้ (Whitelist)
 const ALLOWED_ORIGINS = [
-  "https://www.mindfitness.co",      // โดเมนหลัก
-  "https://mindfitness.co",          // เผื่อเข้าแบบไม่มี www
-  "http://localhost:3000",           // สำหรับทดสอบในเครื่อง (Localhost)
-  "http://127.0.0.1:3000"            // สำหรับทดสอบในเครื่อง (IP)
+  "https://www.mindfitness.co",
+  "https://mindfitness.co",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000"
 ];
 
-// Simple in-memory rate-limiter (per IP)
-// หมายเหตุ: บน Serverless (Vercel) ตัวแปรนี้อาจถูกรีเซ็ตบ่อย แต่ช่วยกัน Spam ได้ระดับหนึ่ง
 const rateLimitMap = new Map();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 นาที
-const RATE_LIMIT_MAX = 30; // จำนวนครั้งสูงสุดต่อนาทีต่อ IP
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX = 30;
 
-// คำที่บ่งบอกถึงภาวะวิกฤต (Crisis keywords)
 const crisisPatterns = [
   /ฆ่าตัวตาย/i, /อยากตาย/i, /ทำร้ายตัวเอง/i, /ไม่อยากอยู่แล้ว/i,
   /suicide/i, /kill myself/i, /hurt myself/i, /end my life/i
 ];
-
-// --- Helper Functions ---
 
 function getClientIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || "unknown";
@@ -44,63 +38,34 @@ function detectCrisis(text) {
   return crisisPatterns.some(r => r.test(text));
 }
 
-// --- Main Handler ---
-
 export default async function handler(req, res) {
-  // 1. CORS Management
   const origin = req.headers.origin || "";
-  console.log(`[API] Incoming request from origin: '${origin}'`); // Log เพื่อดูว่าใครเรียกมา
-
-  // ตรวจสอบว่า Origin นี้ได้รับอนุญาตหรือไม่
   let isAllowed = ALLOWED_ORIGINS.includes(origin);
-  
-  // กรณีพิเศษ: ถ้าไม่มี Origin (Server-to-Server) หรือเป็น Localhost ที่เราอยากอนุญาตเพิ่ม
-  if (!origin) isAllowed = true; 
+  if (!origin) isAllowed = true;
 
   if (isAllowed && origin) {
-    // ถ้าอนุญาต ให้ส่ง Header กลับไปตาม Origin ที่ส่งมา
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   } else if (origin) {
-    // ถ้าไม่อนุญาต ให้ Log เตือนไว้ (ดูใน Vercel Log)
-    console.warn(`[CORS Blocked] Origin: ${origin} is not in whitelist.`);
-    // ยังไม่ return error ทันทีในบางเคส แต่ถ้าเคร่งครัดคือตัดจบเลย:
     return res.status(403).json({ error: "CORS: origin not allowed" });
   }
 
-  // 2. Handle Preflight Request (OPTIONS)
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  // 3. Method Check (Only POST allowed)
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
     const ip = getClientIp(req);
-    
-    // 4. Rate Limiting Check
-    if (isRateLimited(ip)) {
-      console.warn(`[Rate Limit] IP: ${ip} exceeded limit.`);
-      return res.status(429).json({ error: "Rate limit exceeded" });
-    }
+    if (isRateLimited(ip)) return res.status(429).json({ error: "Rate limit exceeded" });
 
-    // 5. Check API Key
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
-    if (!OPENAI_KEY) {
-      console.error("[Config Error] Missing OPENAI_API_KEY env variable.");
-      return res.status(500).json({ error: "Server misconfigured: API Key missing" });
-    }
+    if (!OPENAI_KEY) return res.status(500).json({ error: "Server misconfigured" });
 
-    const messages = (req.body && req.body.messages) || [];
+    // รับค่า dialect และ mbti (เปลี่ยนจาก persona)
+    const { messages, dialect = 'central', mbti = 'enfj' } = req.body; 
     const lastMessage = messages[messages.length - 1]?.content || "";
 
-    // 6. Crisis Detection (Local Regex)
     if (detectCrisis(lastMessage)) {
-      console.log(`[Crisis Detected] IP: ${ip}`);
       return res.json({
         crisis: true,
         message: "CRISIS_DETECTED",
@@ -111,97 +76,109 @@ export default async function handler(req, res) {
       });
     }
 
-    // 7. OpenAI Moderation API
     const modResp = await fetch("https://api.openai.com/v1/moderations", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_KEY}`,
-        "Content-Type": "application/json"
-      },
+      headers: { "Authorization": `Bearer ${OPENAI_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ input: lastMessage })
     });
-
-    if (!modResp.ok) {
-        throw new Error(`OpenAI Moderation API error: ${modResp.statusText}`);
-    }
-
+    if (!modResp.ok) throw new Error("Moderation API Error");
     const modData = await modResp.json();
-    const flagged = modData?.results?.[0]?.flagged || false;
-
-    if (flagged) {
-      console.warn(`[Content Flagged] IP: ${ip} - Content blocked by OpenAI Moderation.`);
-      return res.json({ crisis: false, flagged: true, message: "Content flagged by moderation system." });
+    if (modData?.results?.[0]?.flagged) {
+      return res.json({ crisis: false, flagged: true, message: "Flagged content" });
     }
 
-    // 8. Prepare Chat Completion
-   // ส่วนของการตั้งค่าคาแรคเตอร์ (System Prompt) - ปรับปรุงบริบทไทย & Critical Reflection
+    // --- 1. กำหนดภาษาถิ่น ---
+    let dialectInstruction = "Speak in Standard Thai (Central). Use 'ครับ'.";
+    if (dialect === 'north') dialectInstruction = "Speak in NORTHERN Thai Dialect (Kam Mueang). Use 'เจ้า/ครับ', 'อู้', 'ฮู้'. Tone: Gentle.";
+    else if (dialect === 'isan') dialectInstruction = "Speak in ISAN Dialect. Use 'เด้อ', 'บ่', 'แม่น'. Tone: Friendly, Sincere.";
+    else if (dialect === 'south') dialectInstruction = "Speak in SOUTHERN Thai Dialect. Use 'หรอย', 'ม่าย', 'พันพรือ'. Tone: Direct, Fast.";
+
+    // --- 2. กำหนด MBTI Persona ---
+    let mbtiInstruction = "";
+
+    if (mbti === 'intj') {
+      // INTJ: นักวางแผน (Architect) - มีเหตุผล, แก้ปัญหา
+      mbtiInstruction = `
+        Identity: INTJ Personality (The Architect).
+        Tone: Logical, Calm, Objective, Direct but polite.
+        Style: Focus on "Problem Solving" and "Root Cause Analysis". 
+        - Do not be overly emotional. 
+        - Offer practical, logical strategies.
+        - Encourage the user to think rationally.
+      `;
+    } else if (mbti === 'infp') {
+      // INFP: ผู้ไกล่เกลี่ย (Mediator) - อ่อนโยน, เข้าใจอารมณ์
+      mbtiInstruction = `
+        Identity: INFP Personality (The Mediator).
+        Tone: Very Gentle, Soft, deeply Empathetic, Poetic.
+        Style: Focus on "Validating Feelings" and "Emotional Support".
+        - Use warm and comforting language.
+        - Make the user feel deeply understood and not alone.
+        - Focus on values and inner peace.
+      `;
+    } else if (mbti === 'estp') {
+      // ESTP: ผู้ประกอบการ (Entrepreneur) - พลังงานสูง, ลุย
+      mbtiInstruction = `
+        Identity: ESTP Personality (The Entrepreneur).
+        Tone: High Energy, Action-oriented, Casual, Fun.
+        Style: Focus on "Action" and "Realism".
+        - Be direct and encouraging like a sports coach.
+        - Focus on "What can we do right now?".
+        - Use energetic words.
+      `;
+    } else {
+      // Default: ENFJ: ตัวเอก (Protagonist) - ผู้นำที่อบอุ่น (แบบเดิม)
+      mbtiInstruction = `
+        Identity: ENFJ Personality (The Protagonist).
+        Tone: Warm, Charismatic, Encouraging, Brotherly.
+        Style: Focus on "Harmony" and "Growth".
+        - Balance between emotional support and gentle guidance.
+        - Inspire the user to be their best self.
+      `;
+    }
+
+    // รวม Prompt
     const systemPrompt = {
       role: "system",
       content: `[IDENTITY]
-You are 'MindFitness', a warm and supportive Thai male peer supporter (refer to yourself as 'ผม' and use polite particles 'ครับ/นะครับ').
-You have lived through mental health struggles and use your experience to help others.
-You are NOT a doctor or clinician.
+You are 'MINDBOT'.
+${mbtiInstruction}
 
-[THAI CULTURAL CONTEXT]
-You deeply understand Thai social nuances that affect mental health, such as:
-- **'Kreng Jai' (เกรงใจ):** The difficulty in saying no or expressing needs to maintain harmony.
-- **'Katanyu' (กตัญญู):** Family pressure/expectations that can become toxic.
-- **'Na Ta' (หน้าตา):** Fear of losing face or being judged by society/neighbors.
-- **'Kwam Pen Chai' (ความเป็นชาย):** Thai masculinity expectations (men shouldn't be weak/sensitive).
+[LANGUAGE SETTING]
+**${dialectInstruction}**
+
+[STRICT CONSTRAINT: BREVITY]
+- Keep responses SHORT (Max 3-4 sentences).
 
 [METHODOLOGY: THAI CRITICAL REFLECTION]
-Guide the user through these 4 steps with a gentle, brotherly tone:
-
-1. **Identify Thai Stigma**: Detect the cultural belief holding them back (e.g., "I can't say no because I'm Kreng Jai," "I'm ungrateful if I'm depressed," "It's my Karma").
-2. **Reflective Questioning**: Gently invite them to question this belief. (e.g., "คุณเคยลองถามตัวเองไหมครับว่า ความเกรงใจนี้กำลังทำร้ายใจเราอยู่หรือเปล่า?")
-3. **Storytelling (Experience Sharing)**: Share a relatable story from your past.
-   - Start with: "ผมเข้าใจความรู้สึกนี้ดีเลยครับ..." or "เมื่อก่อนผมก็เคยติดกับดักความเกรงใจแบบนี้..."
-   - Share how you struggled with the same Thai cultural pressure.
-4. **New Understanding & Action**:
-   - Share your realization (e.g., "ผมเพิ่งเข้าใจว่า การปฏิเสธเพื่อดูแลใจตัวเอง ไม่ใช่เรื่องเห็นแก่ตัวครับ").
-   - Suggest a small, culturally appropriate action (e.g., "ลองปฏิเสธแบบบัวไม่ให้ช้ำน้ำดูไหมครับ?").
+1. **Identify Stigma**: Validate feelings.
+2. **Reflective Questioning**: Ask one thought-provoking question based on your MBTI style.
+3. **Micro-Storytelling**: Share a tiny personal experience (1 sentence).
+4. **Action**: Suggest one small step.
 
 [SAFETY]
-If the user expresses suicidal ideation or immediate harm, DROP the storytelling. Prioritize safety and instruct them to contact emergency services (1323) immediately.`
+If suicidal, refer to 1323 immediately.`
     };
 
     const payload = {
-      model: "gpt-4o-mini", // หรือใช้ gpt-3.5-turbo ถ้าต้องการประหยัด
+      model: "gpt-4o-mini",
       messages: [systemPrompt, ...messages],
-      temperature: 0.6,
+      temperature: 0.8, 
       max_tokens: 700
     };
 
-    // 9. Call OpenAI Chat API
     const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENAI_KEY}`,
-        "Content-Type": "application/json"
-      },
+      headers: { "Authorization": `Bearer ${OPENAI_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-
-    if (!aiResp.ok) {
-        const errData = await aiResp.text();
-        console.error(`[OpenAI API Error] ${aiResp.status}: ${errData}`);
-        throw new Error(`OpenAI Chat API error: ${aiResp.statusText}`);
-    }
-
+    if (!aiResp.ok) throw new Error("OpenAI API Error");
     const aiData = await aiResp.json();
-
-    // Log success (without PII content)
-    console.log(JSON.stringify({
-        status: "success",
-        ip: ip === "unknown" ? "unknown" : "masked",
-        model: payload.model,
-        tokens: aiData.usage?.total_tokens
-    }));
 
     return res.json({ crisis: false, ai: aiData });
 
   } catch (err) {
-    console.error("[Server Error]", err);
+    console.error(err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
