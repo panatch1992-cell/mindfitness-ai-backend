@@ -1,10 +1,16 @@
 (function() {
-  // --- [Config] ---
-  const API_URL = "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; // เช็ค URL ให้ตรง!
+  // --- [ZONE แก้ไขข้อมูลของคุณ] ---
+  const API_URL = "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat";
+  
+  // 1. ใส่ลิงก์ LINE หรือ Facebook ของคุณที่นี่
   const SOCIAL_LINK = "https://lin.ee/BUzH2xD"; 
+  
+  // 2. ใส่ลิงก์รูปโลโก้ของคุณที่นี่ (แทนที่ลิงก์ catbox)
+  const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg"; 
+  
   const THEME_COLOR = "#007BFF"; 
-const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
-  // 1. Inject Styles
+  // -------------------------------
+
   const style = document.createElement('style');
   style.innerHTML = `
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
@@ -14,20 +20,23 @@ const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
     #mf-toggle-btn:hover { transform: scale(1.05); }
     #mf-toggle-btn img { width: 100%; height: 100%; object-fit: cover; }
     
-    #mf-chat-window { display: none; width: 380px; max-width: calc(100vw - 40px); height: 650px; /* เพิ่มความสูงนิดนึงให้พอดีปุ่ม */ max-height: 85vh; background: white; border-radius: 12px; box-shadow: 0 5px 30px rgba(0,0,0,0.25); flex-direction: column; overflow: hidden; position: absolute; bottom: 90px; right: 0; border: 1px solid #e0e0e0; }
+    #mf-chat-window { display: none; width: 380px; max-width: calc(100vw - 40px); height: 650px; max-height: 85vh; background: white; border-radius: 12px; box-shadow: 0 5px 30px rgba(0,0,0,0.25); flex-direction: column; overflow: hidden; position: absolute; bottom: 90px; right: 0; border: 1px solid #e0e0e0; }
     
     #mf-header { background: ${THEME_COLOR}; color: white; padding: 15px; font-weight: bold; font-size: 20px; display: flex; flex-direction: column; gap: 10px; }
     
-    /* Header แถวบน: รูป + ชื่อ + ปุ่มปิด */
-    #mf-header-top { display: flex; align-items: center; gap: 8px; width: 100%; }
-    #mf-header img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid white; }
-    #mf-bot-info { flex: 1; display: flex; align-items: center; gap: 5px; cursor: pointer; overflow: hidden; }
-    #mf-bot-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-    #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: white; opacity: 0.9; text-decoration: none; display: flex; align-items: center; }
-
-    /* Header แถวล่าง: ตัวเลือก Dropdowns */
+    /* ส่วนบนของ Header: รูป + ชื่อ + ปุ่มต่างๆ */
+    #mf-header-top { display: flex; align-items: center; width: 100%; }
+    #mf-header img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid white; margin-right: 8px; }
+    
+    #mf-bot-info { flex: 1; cursor: pointer; overflow: hidden; }
+    #mf-bot-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; font-size: 18px;}
+    
+    /* กลุ่มปุ่มขวาบน */
+    #mf-header-actions { display: flex; align-items: center; gap: 12px; }
+    #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 22px; color: white; opacity: 0.9; text-decoration: none; display: flex; align-items: center; padding: 0; }
+    
+    /* ส่วนล่าง Header: Dropdowns */
     #mf-controls { display: flex; gap: 5px; width: 100%; overflow-x: auto; padding-bottom: 2px; }
-    /* ซ่อน Scrollbar */
     #mf-controls::-webkit-scrollbar { display: none; } 
 
     .mf-select {
@@ -56,20 +65,21 @@ const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
   `;
   document.head.appendChild(style);
 
-  // 2. Inject HTML
   const container = document.createElement('div');
   container.id = 'mf-widget-container';
   container.innerHTML = `
     <div id="mf-chat-window">
       <div id="mf-header">
         <div id="mf-header-top">
-            <img src="https://files.catbox.moe/k4s55g.jpg" alt="Avatar">
-            <div id="mf-bot-info" onclick="renameBot()">
+            <img src="${AVATAR_URL}" alt="Avatar"> <div id="mf-bot-info" onclick="renameBot()">
                 <span id="mf-bot-name">MINDBOT</span>
             </div>
             
-            <button id="mf-sound-btn" title="เปิด/ปิดเสียงอ่าน">🔇</button>
-            <span style="cursor:pointer;" id="mf-close-btn">×</span>
+            <div id="mf-header-actions">
+                <a id="mf-contact-btn" href="${SOCIAL_LINK}" target="_blank" title="แอด LINE">👤</a>
+                <button id="mf-sound-btn" title="เปิด/ปิดเสียง">🔇</button>
+                <span id="mf-close-btn" title="ปิด">×</span>
+            </div>
         </div>
 
         <div id="mf-controls">
@@ -79,26 +89,24 @@ const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
                 <option value="isan">อีสาน</option>
                 <option value="south">ใต้</option>
             </select>
-            
             <select id="mf-mbti-select" class="mf-select" onchange="updateSettings()">
                 <option value="enfj">พี่หมอ (ENFJ)</option>
                 <option value="infp">นักกวี (INFP)</option>
                 <option value="intj">นักคิด (INTJ)</option>
                 <option value="estp">สายลุย (ESTP)</option>
             </select>
-
             <select id="mf-exp-select" class="mf-select" onchange="updateSettings()">
                 <option value="general">ทั่วไป</option>
-                <option value="depression">เคยผ่านโรคซึมเศร้า</option>
-                <option value="anxiety">เคยผ่านโรควิตกกังวล</option>
-                <option value="burnout">เคยหมดไฟทำงาน</option>
-                <option value="relationship">เคยผ่านปัญหาความรัก</option>
+                <option value="depression">เคยผ่านซึมเศร้า</option>
+                <option value="anxiety">เคยผ่านวิตกกังวล</option>
+                <option value="burnout">เคยหมดไฟ</option>
+                <option value="relationship">เคยผ่านเรื่องรัก</option>
             </select>
         </div>
       </div>
       
       <div id="mf-messages">
-        <div class="mf-msg bot">สวัสดีครับ ผม <b>MINDBOT</b> เพื่อนรับฟังของคุณ 🤖<br>ตั้งค่าเพื่อนคู่คิดที่ตรงใจคุณที่ด้านบนได้เลยนะครับ</div>
+        <div class="mf-msg bot">สวัสดีครับ ผม <b>MINDBOT</b> 🤖<br>วันนี้ใจเป็นยังไงบ้างครับ? เลือกโหมดเพื่อนคู่คิดด้านบนได้เลยนะครับ</div>
       </div>
       
       <div id="mf-chips-area">
@@ -117,12 +125,10 @@ const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
     </div>
     
     <button id="mf-toggle-btn">
-      <img src="https://files.catbox.moe/k4s55g.jpg" alt="Chat Logo">
-    </button>
+      <img src="${AVATAR_URL}" alt="Chat Logo"> </button>
   `;
   document.body.appendChild(container);
 
-  // 3. Logic
   let messageHistory = [];
   let isSoundOn = false; 
   const chatWindow = document.getElementById('mf-chat-window');
@@ -133,10 +139,9 @@ const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
   const micBtn = document.getElementById('mf-mic-btn');
   const soundBtn = document.getElementById('mf-sound-btn');
   const msgContainer = document.getElementById('mf-messages');
-  
   const dialectSelect = document.getElementById('mf-dialect-select');
   const mbtiSelect = document.getElementById('mf-mbti-select');
-  const expSelect = document.getElementById('mf-exp-select'); // New
+  const expSelect = document.getElementById('mf-exp-select');
 
   function speakText(text) {
     if (!isSoundOn) return;
@@ -149,17 +154,19 @@ const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
   soundBtn.onclick = function() {
     isSoundOn = !isSoundOn;
     soundBtn.innerText = isSoundOn ? "🔊" : "🔇";
-    soundBtn.className = isSoundOn ? "active" : "";
-    if (isSoundOn) speakText("เปิดเสียงแล้วครับ");
+    // แจ้งเตือนสถานะเสียง
+    appendMessage('system', isSoundOn ? "เปิดเสียงอ่านแล้วครับ" : "ปิดเสียงอ่านแล้วครับ");
   }
 
   window.updateSettings = function() {
     const dialectName = dialectSelect.options[dialectSelect.selectedIndex].text;
     const mbtiName = mbtiSelect.options[mbtiSelect.selectedIndex].text;
     const expName = expSelect.options[expSelect.selectedIndex].text;
-    appendMessage('system', `ตั้งค่า: ${dialectName} + ${mbtiName} + ${expName}`);
+    // แจ้งเตือนเมื่อเปลี่ยนค่า
+    appendMessage('system', `🆗 เปลี่ยนโหมดเป็น: ${dialectName} + ${mbtiName} + ${expName}`);
   }
 
+  // ... (ส่วน Voice Recognition เหมือนเดิม) ...
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   if (SpeechRecognition) {
@@ -190,6 +197,7 @@ const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
     if (newName && newName.trim() !== "") {
         document.getElementById('mf-bot-name').innerText = newName;
         messageHistory.push({ role: "system", content: `[System] User renamed you to "${newName}".` });
+        appendMessage('system', `เปลี่ยนชื่อเป็น "${newName}" เรียบร้อยครับ`);
     }
   }
 
@@ -199,7 +207,7 @@ const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
     const text = input.value.trim();
     const dialect = dialectSelect.value;
     const mbti = mbtiSelect.value;
-    const experience = expSelect.value; // ส่งค่าประสบการณ์
+    const experience = expSelect.value;
     
     if (!text) return;
     window.speechSynthesis.cancel();
@@ -217,7 +225,6 @@ const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg";
     msgContainer.appendChild(loadingDiv);
     
     try {
-      // ส่งครบ 3 ค่า: dialect, mbti, experience
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
