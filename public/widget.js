@@ -4,7 +4,7 @@
   const SOCIAL_LINK = "https://lin.ee/BUzH2xD"; // <--- ใส่ลิงก์ LINE ของคุณ
   const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg"; // <--- ใส่ลิงก์รูปโลโก้
   const PSYCHIATRIST_LINK = "https://www.facebook.com/share/p/1BuBPPWjGH/";
-  const QR_CODE_URL = "https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg"; // <--- ใส่ลิงก์ QR Code รับเงิน
+  const QR_CODE_URL = "https://files.catbox.moe/7v14nh.jpg"; // <--- ใส่ลิงก์ QR Code รับเงิน
   const THEME_COLOR = "#007BFF"; 
   // ---------------------
 
