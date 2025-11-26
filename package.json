@@ -1,10 +1,9 @@
 {
   "name": "ai-therapist-backend-pro",
   "version": "1.0.0",
-  "type": "module",
   "dependencies": {
-    "openai": "4.28.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
     "@line/bot-sdk": "^7.5.2"
-  }
+  },
+  "type": "module"
 }
