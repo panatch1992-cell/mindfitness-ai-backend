@@ -56,7 +56,7 @@
   container.innerHTML = `
     <div id="mf-chat-window">
       <div id="mf-header">
-        <img src="https://files.catbox.moe/k4s55g.jpg" alt="Avatar">
+        <img src=""https://files.catbox.moe/rdkdlq.jpg" alt="Avatar">
         
         <div id="mf-bot-info" onclick="renameBot()" title="คลิกเพื่อเปลี่ยนชื่อ">
             <span id="mf-bot-name">MindFitness</span>
