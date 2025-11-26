@@ -92,7 +92,7 @@
     </div>
     
     <button id="mf-toggle-btn">
-      <img src="https://files.catbox.moe/k4s55g.jpg" alt="Chat Logo">
+      <img src="https://files.catbox.moe/rdkdlq.jpg" alt="Chat Logo">
     </button>
   `;
   document.body.appendChild(container);
