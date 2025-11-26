@@ -1,6 +1,5 @@
-import { Client, middleware } from "@line/bot-sdk";
+import { Client } from "@line/bot-sdk";
 import fetch from "node-fetch";
-import crypto from "crypto";
 
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
@@ -9,37 +8,34 @@ const config = {
 
 const client = new Client(config);
 
+// ฟังก์ชันสร้างปุ่ม Quick Reply
+function createQuickReply(items) {
+  return {
+    items: items.map(item => ({
+      type: "action",
+      action: {
+        type: "message",
+        label: item.label,
+        text: item.text || item.label
+      }
+    }))
+  };
+}
+
 async function getAIResponse(userMessage) {
   const OPENAI_KEY = process.env.OPENAI_API_KEY;
   
   const systemPrompt = {
     role: "system",
     content: `[IDENTITY]
-You are 'MINDBOT' (LINE OA), a Thai male peer supporter (use "ผม/ครับ").
-You are NOT a psychiatrist. You utilize "Critical Reflection" to help users.
+You are 'MINDBOT' (LINE OA), a warm Thai male peer supporter (use "ผม/ครับ").
+You utilize "Critical Reflection" and DSM-5 knowledge.
 
-[KNOWLEDGE BASE: DSM-5 & THAI SOCIAL STIGMA]
-- You understand symptoms of Depression, Anxiety, Burnout, etc.
-- You are aware of Thai online stigmas (e.g., Toxic Positivity, Gratitude Debt).
-
-[TASK]
-Since LINE has no dropdowns, you must **detect the user's problem automatically**:
-- If they sound sad/empty -> Use "Depression Survivor" persona.
-- If they sound worried/panic -> Use "Anxiety Survivor" persona.
-- If they sound tired of work -> Use "Burnout Survivor" persona.
-
-[METHODOLOGY: CRITICAL REFLECTION]
-1. **Validate & Identify Stigma:** Validate feelings and point out self-blame.
-2. **Reflective Question:** Ask a gentle question to rethink that belief.
-3. **Shared Experience:** Briefly mention "I've been there too."
-
-[CORE RULES]
-- Keep it SHORT (2-3 sentences max for LINE).
-- Mirror User's Tone.
-- Be warm and supportive.
-
-[SAFETY]
-If suicidal, reply ONLY with: "⚠️ ผมเป็นห่วงคุณมากครับ แต่กรณีฉุกเฉินแบบนี้ ผมแนะนำให้โทรสายด่วนสุขภาพจิต 1323 ได้ตลอด 24 ชม. นะครับ"`
+[INSTRUCTION]
+- Detect the user's emotional state.
+- If they seem unsure or generic, ask them to choose a topic using the Quick Reply buttons (I will handle the buttons).
+- Keep responses SHORT (2-3 sentences).
+- If suicidal, reply ONLY with: "⚠️ ผมเป็นห่วงคุณมากครับ..."`
   };
 
   try {
@@ -60,18 +56,63 @@ If suicidal, reply ONLY with: "⚠️ ผมเป็นห่วงคุณม
     return data.choices[0].message.content;
   } catch (e) {
     console.error("OpenAI Error:", e);
-    return "ขอโทษครับ ตอนนี้ระบบผมมีปัญหานิดหน่อย ลองทักมาใหม่นะครับ";
+    return "ขอโทษครับ ระบบมีปัญหาชั่วคราว";
   }
 }
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
     const events = req.body.events;
+    
     const results = await Promise.all(
       events.map(async (event) => {
         if (event.type === "message" && event.message.type === "text") {
-          const aiReply = await getAIResponse(event.message.text);
-          return client.replyMessage(event.replyToken, { type: "text", text: aiReply });
+          const userText = event.message.text;
+          let replyMessage = { type: "text", text: "" };
+
+          // 1. ถ้าผู้ใช้พิมพ์คำว่า "เมนู" หรือ "เริ่ม" หรือ "topic" ให้โชว์ปุ่มเลือกหัวข้อ
+          if (["เมนู", "เริ่ม", "topic", "help", "ช่วยด้วย"].includes(userText.toLowerCase())) {
+             replyMessage.text = "อยากปรึกษาเรื่องไหนเป็นพิเศษไหมครับ? เลือกหัวข้อด้านล่างได้เลยนะ 👇";
+             replyMessage.quickReply = createQuickReply([
+               { label: "🌧️ ซึมเศร้า", text: "ปรึกษาเรื่องซึมเศร้า" },
+               { label: "⚡ วิตกกังวล", text: "ปรึกษาเรื่องวิตกกังวล" },
+               { label: "🔋 หมดไฟ", text: "ปรึกษาเรื่องหมดไฟ" },
+               { label: "💔 ความรัก", text: "ปรึกษาเรื่องความรัก" },
+               { label: "🍀 ทั่วไป", text: "ขอกำลังใจหน่อย" }
+             ]);
+          } 
+          // 2. ถ้าเป็นข้อความปกติ ให้ AI ตอบ
+          else {
+             const aiReply = await getAIResponse(userText);
+             replyMessage.text = aiReply;
+             
+             // ถ้า AI สัมผัสได้ว่าเครียดมาก หรือพูดเรื่องตาย ให้แถมปุ่มฉุกเฉิน
+             if (aiReply.includes("1323") || aiReply.includes("ฉุกเฉิน")) {
+                replyMessage.quickReply = createQuickReply([
+                  { label: "📞 โทร 1323", type: "uri", uri: "tel:1323" } // (Note: LINE quick reply action for call is limited, usually need flex message for direct link, here we use text for simplicity in this template context, but standard quick reply 'message' action is safer for beginner setup. For URI action in Quick Reply, it's supported on mobile.)
+                ]);
+                // แก้ไข: Quick Reply แบบปุ่มโทรออกต้องใช้ Action type 'uri' ซึ่งรองรับในมือถือ
+                replyMessage.quickReply = {
+                    items: [
+                        {
+                            type: "action",
+                            action: {
+                                type: "uri",
+                                label: "📞 โทร 1323",
+                                uri: "tel:1323"
+                            }
+                        }
+                    ]
+                };
+             } else {
+                 // แถมปุ่ม "เมนู" ไว้ให้กดง่ายๆ เสมอ
+                 replyMessage.quickReply = createQuickReply([
+                    { label: "💬 เมนูหลัก", text: "เมนู" }
+                 ]);
+             }
+          }
+
+          return client.replyMessage(event.replyToken, replyMessage);
         }
       })
     );
