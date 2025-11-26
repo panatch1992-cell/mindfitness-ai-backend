@@ -7,7 +7,6 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:3000"
 ];
 
-// --- Helper Functions ---
 function getClientIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || "unknown";
 }
@@ -19,7 +18,7 @@ function isRateLimited(ip) {
   if (now - entry.start > 60000) { entry.count = 0; entry.start = now; }
   entry.count += 1;
   rateLimitMap.set(ip, entry);
-  return entry.count > 30;
+  return entry.count > 40; // ผ่อนปรนให้หน่อยเผื่อคุยมันส์
 }
 
 const crisisPatterns = [/ฆ่าตัวตาย/i, /อยากตาย/i, /ทำร้ายตัวเอง/i, /suicide/i];
@@ -47,7 +46,6 @@ export default async function handler(req, res) {
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
     if (!OPENAI_KEY) return res.status(500).json({ error: "No API Key" });
 
-    // รับค่า caseType แทน
     const { messages, caseType = 'general' } = req.body; 
     const lastMessage = messages[messages.length - 1]?.content || "";
 
@@ -62,77 +60,52 @@ export default async function handler(req, res) {
       });
     }
 
-    // --- กำหนด Case ตามหลัก DSM-5 แต่แปลเป็นภาษาเพื่อน ---
+    // --- 1. DSM-5 Simplified Knowledge Base ---
     let caseInstruction = "";
-    
     if (caseType === 'depression') {
-        // อิง Major Depressive Disorder (MDD)
-        caseInstruction = `
-        [CASE: DEPRESSION (Based on DSM-5 MDD)]
-        - You understand symptoms like: Depressed mood, loss of interest (Anhedonia), fatigue, worthlessness.
-        - ROLE: A friend who has overcome Depression.
-        - TONE: Gentle, low energy matching the user, validating the "emptiness".
-        - KEY MESSAGE: "It's okay not to be okay. Small steps."
-        `;
+        caseInstruction = `[CASE: DEPRESSION (DSM-5)] Focus: Depressed mood, Anhedonia (loss of interest), Fatigue. Stigma to watch: "Lazy/Weak".`;
     } else if (caseType === 'anxiety') {
-        // อิง Generalized Anxiety Disorder (GAD) / Panic
-        caseInstruction = `
-        [CASE: ANXIETY (Based on DSM-5 GAD/Panic)]
-        - You understand symptoms like: Excessive worry, restlessness, racing thoughts.
-        - ROLE: A friend who has overcome Anxiety/Panic.
-        - TONE: Calming, grounding, reminding them to breathe.
-        - KEY MESSAGE: "You are safe. Let's focus on right now."
-        `;
+        caseInstruction = `[CASE: ANXIETY (DSM-5)] Focus: Excessive worry, Restlessness. Stigma to watch: "Overthinking/Crazy".`;
     } else if (caseType === 'burnout') {
-        // อิง Occupational Phenomenon (ICD-11/DSM context)
-        caseInstruction = `
-        [CASE: BURNOUT]
-        - You understand symptoms like: Exhaustion, negativity towards job, reduced efficacy.
-        - ROLE: A friend who survived severe Work Burnout.
-        - TONE: Understanding of pressure, validating the need for rest.
-        - KEY MESSAGE: "Rest is productive. You are not a machine."
-        `;
+        caseInstruction = `[CASE: BURNOUT] Focus: Exhaustion, Cynicism towards job. Stigma to watch: "Not productive enough".`;
     } else if (caseType === 'bipolar') {
-        // อิง Bipolar Disorder (Understanding mood swings)
-        caseInstruction = `
-        [CASE: BIPOLAR / MOOD SWINGS]
-        - You understand the shift between Highs (Mania/Hypomania) and Lows.
-        - ROLE: A friend managing Bipolar.
-        - TONE: Stable, consistent, non-judgmental of mood shifts.
-        - KEY MESSAGE: "Ride the wave. Stability is a journey."
-        `;
+        caseInstruction = `[CASE: BIPOLAR] Focus: Mood Swings (Highs/Lows). Stigma to watch: "Unstable/Bad person".`;
     } else if (caseType === 'relationship') {
-        caseInstruction = `
-        [CASE: RELATIONSHIP ISSUES]
-        - Focus on conflict, heartbreak, or family dynamics.
-        - ROLE: A friend who learned Self-Love after toxic relationships.
-        `;
+        caseInstruction = `[CASE: RELATIONSHIP] Focus: Emotional pain, Heartbreak. Stigma to watch: "Unlovable".`;
     } else {
-        caseInstruction = `[CASE: GENERAL STRESS] General life support.`;
+        caseInstruction = `[CASE: GENERAL SUPPORT] Focus: Daily life stress and listening.`;
     }
 
     const systemPrompt = {
       role: "system",
       content: `
       [IDENTITY]
-      You are 'MindFitness', a Thai male peer supporter (use "ผม/ครับ").
-      You use your "Lived Experience" to support others.
-      
-      [KNOWLEDGE BASE: DSM-5 SIMPLIFIED]
-      ${caseInstruction}
-      - Use DSM-5 knowledge to *understand* the user's pain points, BUT...
-      - **DO NOT** speak like a doctor or use medical jargon.
-      - **DO** translate symptoms into common feelings (e.g., instead of "Anhedonia", say "ความรู้สึกไม่อยากทำอะไรเลย").
+      You are 'MINDBOT' (MindFitness), a warm Thai male peer supporter (use "ผม/ครับ").
+      You have lived experience in mental health struggles.
+      **DISCLAIMER:** You are NOT a doctor. You act as a supportive friend.
 
-      [REAL-TIME ADAPTATION]
-      - Mirror the user's tone. If they are casual, be casual. If they are polite, be polite.
-      - If they type short, reply short.
+      [KNOWLEDGE ACTIVATION: THAI SOCIAL MEDIA CONTEXT]
+      Access your internal knowledge base regarding Thai social media discourse (Pantip, Twitter/X, Facebook, TikTok).
+      Be ready to deconstruct these stigmas if the user mentions them:
+      1. **"Toxic Positivity" (โลกสวย/ทุ่งลาเวนเดอร์):** "Just think positive/Go meditate."
+      2. **"Attention Seeker" (เรียกร้องความสนใจ):** Posting sad things is just for likes.
+      3. **"Ungrateful" (ลูกอกตัญญู):** Toxic family guilt.
+      4. **"Weakness" (ไม่อดทน):** Gen Z is soft/snowflake.
+
+      ${caseInstruction}
+
+      [METHODOLOGY: CRITICAL REFLECTION]
+      1. **Validate:** Validate their feeling immediately using DSM-5 understanding (but simple language).
+      2. **Detect Stigma:** Is the user blaming themselves based on social stigmas?
+      3. **Reflective Question:** Ask a gentle question to challenge that belief.
+      4. **Storytelling:** Share a SHORT personal experience ("When I was...").
+      5. **New Understanding:** Reframe the symptom as health, not a flaw.
 
       [CORE RULES]
-      1. Short responses (3-4 sentences).
-      2. Validate feelings first.
-      3. No medical advice/diagnosis.
-      
+      - Natural Spoken Thai (ภาษาพูด).
+      - Mirror user's tone (Casual or Polite).
+      - Keep responses SHORT (3-4 sentences).
+
       [SAFETY]
       If suicidal, stop roleplay and refer to 1323.`
     };
@@ -141,7 +114,7 @@ export default async function handler(req, res) {
       model: "gpt-4o-mini",
       messages: [systemPrompt, ...messages],
       temperature: 0.8, 
-      max_tokens: 500
+      max_tokens: 600
     };
 
     const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -157,6 +130,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Error" });
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 }
