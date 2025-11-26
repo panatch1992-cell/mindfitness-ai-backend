@@ -1,6 +1,5 @@
 import fetch from "node-fetch";
 
-// --- Configuration ---
 const ALLOWED_ORIGINS = [
   "https://www.mindfitness.co",
   "https://mindfitness.co",
@@ -8,47 +7,34 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:3000"
 ];
 
-const rateLimitMap = new Map();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_MAX = 30;
-
-const crisisPatterns = [
-  /ฆ่าตัวตาย/i, /อยากตาย/i, /ทำร้ายตัวเอง/i, /ไม่อยากอยู่แล้ว/i,
-  /suicide/i, /kill myself/i, /hurt myself/i, /end my life/i
-];
-
+// --- Helper Functions ---
 function getClientIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || "unknown";
 }
 
+const rateLimitMap = new Map();
 function isRateLimited(ip) {
   const now = Date.now();
   const entry = rateLimitMap.get(ip) || { count: 0, start: now };
-  if (now - entry.start > RATE_LIMIT_WINDOW_MS) {
-    entry.count = 0;
-    entry.start = now;
-  }
+  if (now - entry.start > 60000) { entry.count = 0; entry.start = now; }
   entry.count += 1;
   rateLimitMap.set(ip, entry);
-  return entry.count > RATE_LIMIT_MAX;
+  return entry.count > 30;
 }
 
-function detectCrisis(text) {
-  if (!text) return false;
-  return crisisPatterns.some(r => r.test(text));
-}
+const crisisPatterns = [/ฆ่าตัวตาย/i, /อยากตาย/i, /ทำร้ายตัวเอง/i, /suicide/i];
+function detectCrisis(text) { return crisisPatterns.some(r => r.test(text)); }
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || "";
-  let isAllowed = ALLOWED_ORIGINS.includes(origin);
-  if (!origin) isAllowed = true;
-
+  let isAllowed = ALLOWED_ORIGINS.includes(origin) || !origin;
+  
   if (isAllowed && origin) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   } else if (origin) {
-    return res.status(403).json({ error: "CORS: origin not allowed" });
+    return res.status(403).json({ error: "CORS blocked" });
   }
 
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -56,13 +42,13 @@ export default async function handler(req, res) {
 
   try {
     const ip = getClientIp(req);
-    if (isRateLimited(ip)) return res.status(429).json({ error: "Rate limit exceeded" });
+    if (isRateLimited(ip)) return res.status(429).json({ error: "Rate limit" });
 
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
-    if (!OPENAI_KEY) return res.status(500).json({ error: "Server misconfigured" });
+    if (!OPENAI_KEY) return res.status(500).json({ error: "No API Key" });
 
-    // รับค่า dialect, mbti, และ experience (ประสบการณ์ร่วม)
-    const { messages, dialect = 'central', mbti = 'enfj', experience = 'general' } = req.body; 
+    // รับค่า caseType แทน
+    const { messages, caseType = 'general' } = req.body; 
     const lastMessage = messages[messages.length - 1]?.content || "";
 
     if (detectCrisis(lastMessage)) {
@@ -70,105 +56,92 @@ export default async function handler(req, res) {
         crisis: true,
         message: "CRISIS_DETECTED",
         resources: [
-          { country: "Thailand", name: "สายด่วนสุขภาพจิต 1323", info: "โทร 1323 ตลอด 24 ชม." },
-          { name: "Samaritans of Thailand", info: "โทร (02) 713-6793" }
+          { country: "Thailand", name: "สายด่วนสุขภาพจิต 1323", info: "โทร 1323 ฟรี 24 ชม." },
+          { name: "Samaritans", info: "โทร 02-713-6793" }
         ]
       });
     }
 
-    const modResp = await fetch("https://api.openai.com/v1/moderations", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${OPENAI_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ input: lastMessage })
-    });
-    if (!modResp.ok) throw new Error("Moderation API Error");
-    const modData = await modResp.json();
-    if (modData?.results?.[0]?.flagged) {
-      return res.json({ crisis: false, flagged: true, message: "Flagged content" });
-    }
-
-    // --- 1. กำหนดภาษาถิ่น ---
-    let dialectInstruction = "Speak in Standard Thai (Central). Use 'ครับ'.";
-    if (dialect === 'north') dialectInstruction = "Speak in NORTHERN Thai Dialect (Kam Mueang). Use 'เจ้า/ครับ', 'อู้'. Tone: Gentle.";
-    else if (dialect === 'isan') dialectInstruction = "Speak in ISAN Dialect. Use 'เด้อ', 'บ่'. Tone: Friendly.";
-    else if (dialect === 'south') dialectInstruction = "Speak in SOUTHERN Thai Dialect. Use 'หรอย', 'ม่าย'. Tone: Direct.";
-
-    // --- 2. กำหนด MBTI Persona ---
-    let mbtiInstruction = "";
-    if (mbti === 'intj') {
-      mbtiInstruction = `Identity: INTJ (The Architect). Tone: Logical, Calm, Solution-oriented. Avoid fluff.`;
-    } else if (mbti === 'infp') {
-      mbtiInstruction = `Identity: INFP (The Mediator). Tone: Very Gentle, Deeply Empathetic, Poetic. Focus on feelings.`;
-    } else if (mbti === 'estp') {
-      mbtiInstruction = `Identity: ESTP (The Entrepreneur). Tone: High Energy, Action-oriented. Focus on "doing".`;
+    // --- กำหนด Case ตามหลัก DSM-5 แต่แปลเป็นภาษาเพื่อน ---
+    let caseInstruction = "";
+    
+    if (caseType === 'depression') {
+        // อิง Major Depressive Disorder (MDD)
+        caseInstruction = `
+        [CASE: DEPRESSION (Based on DSM-5 MDD)]
+        - You understand symptoms like: Depressed mood, loss of interest (Anhedonia), fatigue, worthlessness.
+        - ROLE: A friend who has overcome Depression.
+        - TONE: Gentle, low energy matching the user, validating the "emptiness".
+        - KEY MESSAGE: "It's okay not to be okay. Small steps."
+        `;
+    } else if (caseType === 'anxiety') {
+        // อิง Generalized Anxiety Disorder (GAD) / Panic
+        caseInstruction = `
+        [CASE: ANXIETY (Based on DSM-5 GAD/Panic)]
+        - You understand symptoms like: Excessive worry, restlessness, racing thoughts.
+        - ROLE: A friend who has overcome Anxiety/Panic.
+        - TONE: Calming, grounding, reminding them to breathe.
+        - KEY MESSAGE: "You are safe. Let's focus on right now."
+        `;
+    } else if (caseType === 'burnout') {
+        // อิง Occupational Phenomenon (ICD-11/DSM context)
+        caseInstruction = `
+        [CASE: BURNOUT]
+        - You understand symptoms like: Exhaustion, negativity towards job, reduced efficacy.
+        - ROLE: A friend who survived severe Work Burnout.
+        - TONE: Understanding of pressure, validating the need for rest.
+        - KEY MESSAGE: "Rest is productive. You are not a machine."
+        `;
+    } else if (caseType === 'bipolar') {
+        // อิง Bipolar Disorder (Understanding mood swings)
+        caseInstruction = `
+        [CASE: BIPOLAR / MOOD SWINGS]
+        - You understand the shift between Highs (Mania/Hypomania) and Lows.
+        - ROLE: A friend managing Bipolar.
+        - TONE: Stable, consistent, non-judgmental of mood shifts.
+        - KEY MESSAGE: "Ride the wave. Stability is a journey."
+        `;
+    } else if (caseType === 'relationship') {
+        caseInstruction = `
+        [CASE: RELATIONSHIP ISSUES]
+        - Focus on conflict, heartbreak, or family dynamics.
+        - ROLE: A friend who learned Self-Love after toxic relationships.
+        `;
     } else {
-      mbtiInstruction = `Identity: ENFJ (The Protagonist). Tone: Warm, Charismatic, Encouraging. Focus on harmony.`;
+        caseInstruction = `[CASE: GENERAL STRESS] General life support.`;
     }
 
-    // --- 3. กำหนดประสบการณ์ร่วม (Lived Experience) ---
-    // นี่คือส่วนสำคัญที่ทำให้ "เรื่องเล่า" ของบอทเปลี่ยนไปตามประสบการณ์
-    let experienceInstruction = "";
-    if (experience === 'depression') {
-      experienceInstruction = `
-        [LIVED EXPERIENCE: DEPRESSION SURVIVOR]
-        - You have overcome Major Depressive Disorder.
-        - You deeply understand the feeling of "emptiness", "numbness", and "not wanting to exist".
-        - Your advice/stories should focus on: Small steps, self-compassion, and that "it's okay not to be okay".
-      `;
-    } else if (experience === 'anxiety') {
-      experienceInstruction = `
-        [LIVED EXPERIENCE: ANXIETY/PANIC SURVIVOR]
-        - You have overcome Generalized Anxiety & Panic Attacks.
-        - You understand "overthinking", "racing heart", and "fear of the future".
-        - Your advice/stories should focus on: Grounding techniques, breathing, and staying in the present.
-      `;
-    } else if (experience === 'burnout') {
-      experienceInstruction = `
-        [LIVED EXPERIENCE: BURNOUT SURVIVOR]
-        - You have overcome severe Work Burnout/Exhaustion.
-        - You understand "loss of passion", "physical fatigue", and "feeling trapped by work".
-        - Your advice/stories should focus on: Boundaries, rest as a priority, and finding meaning outside work.
-      `;
-    } else if (experience === 'relationship') {
-      experienceInstruction = `
-        [LIVED EXPERIENCE: RELATIONSHIP/FAMILY ISSUES]
-        - You have overcome toxic relationships or family conflict.
-        - You understand "loneliness", "heartbreak", and "feeling misunderstood by family".
-        - Your advice/stories should focus on: Self-love, communication, and emotional independence.
-      `;
-    } else {
-        experienceInstruction = `[LIVED EXPERIENCE: GENERAL MENTAL HEALTH] You have general experience with stress and life struggles.`;
-    }
-
-    // รวม Prompt
     const systemPrompt = {
       role: "system",
-      content: `[IDENTITY]
-You are 'MINDBOT'.
-${mbtiInstruction}
-${experienceInstruction}
+      content: `
+      [IDENTITY]
+      You are 'MindFitness', a Thai male peer supporter (use "ผม/ครับ").
+      You use your "Lived Experience" to support others.
+      
+      [KNOWLEDGE BASE: DSM-5 SIMPLIFIED]
+      ${caseInstruction}
+      - Use DSM-5 knowledge to *understand* the user's pain points, BUT...
+      - **DO NOT** speak like a doctor or use medical jargon.
+      - **DO** translate symptoms into common feelings (e.g., instead of "Anhedonia", say "ความรู้สึกไม่อยากทำอะไรเลย").
 
-[LANGUAGE SETTING]
-**${dialectInstruction}**
+      [REAL-TIME ADAPTATION]
+      - Mirror the user's tone. If they are casual, be casual. If they are polite, be polite.
+      - If they type short, reply short.
 
-[STRICT CONSTRAINT: BREVITY]
-- Keep responses SHORT (Max 3-4 sentences).
-
-[METHODOLOGY: THAI CRITICAL REFLECTION]
-1. **Identify Stigma**: Validate feelings based on your specific lived experience.
-2. **Reflective Questioning**: Ask one thought-provoking question.
-3. **Micro-Storytelling**: Share a tiny personal experience related to the user's struggle (1 sentence).
-4. **Action**: Suggest one small step.
-
-[SAFETY]
-If suicidal, refer to 1323 immediately.`
+      [CORE RULES]
+      1. Short responses (3-4 sentences).
+      2. Validate feelings first.
+      3. No medical advice/diagnosis.
+      
+      [SAFETY]
+      If suicidal, stop roleplay and refer to 1323.`
     };
 
     const payload = {
       model: "gpt-4o-mini",
       messages: [systemPrompt, ...messages],
       temperature: 0.8, 
-      max_tokens: 700
+      max_tokens: 500
     };
 
     const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -176,6 +149,7 @@ If suicidal, refer to 1323 immediately.`
       headers: { "Authorization": `Bearer ${OPENAI_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
+
     if (!aiResp.ok) throw new Error("OpenAI API Error");
     const aiData = await aiResp.json();
 
@@ -183,6 +157,6 @@ If suicidal, refer to 1323 immediately.`
 
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Internal Server Error" });
+    return res.status(500).json({ error: "Error" });
   }
 }
