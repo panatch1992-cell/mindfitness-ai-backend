@@ -1,12 +1,16 @@
 (function() {
-  // --- [CONFIG: ตั้งค่าของคุณที่นี่] ---
-  const API_URL = "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; 
-  const SOCIAL_LINK = "https://lin.ee/BUzH2xD"; // ใส่ลิงก์ LINE OA ของคุณ
-  const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg"; // ใส่ลิงก์รูปโลโก้ของคุณ (ผมเอาจากรูปที่คุณส่งมาใส่ให้แล้วครับ)
-  const PSYCHIATRIST_LINK = "https://www.facebook.com/share/p/1BuBPPWjGH/"; // ลิงก์หมอ
-  const THEME_COLOR = "#007BFF"; // สีฟ้า
-  // -----------------------------------
+  // 1. อ่านค่า Config จากหน้าเว็บ (Hostinger)
+  // ถ้าไม่มีการตั้งค่า จะใช้ค่า Default (หลังเครื่องหมาย ||)
+  const config = window.MindBotWidgetConfig || {};
 
+  const API_URL = config.backendUrl || "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat";
+  const SOCIAL_LINK = config.socialLink || "https://lin.ee/BUzH2xD"; 
+  const AVATAR_URL = config.avatar || "https://files.catbox.moe/rdkdlq.jpg";
+  const PSYCHIATRIST_LINK = config.psychiatristLink || "https://www.facebook.com/share/p/1BuBPPWjGH/";
+  const THEME_COLOR = config.themeColor || "#007BFF";
+  const BOT_NAME = config.assistantName || "MindBot";
+
+  // 2. Inject Styles
   const style = document.createElement('style');
   style.innerHTML = `
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
@@ -22,7 +26,7 @@
     #mf-header-top { display: flex; align-items: center; width: 100%; }
     #mf-header img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid white; margin-right: 10px; }
     #mf-bot-info { flex: 1; overflow: hidden; }
-    #mf-bot-name { font-weight: bold; font-size: 18px; } /* ชื่อบอท */
+    #mf-bot-name { font-weight: bold; font-size: 18px; }
     
     #mf-doc-link { font-size: 12px; color: white; text-decoration: underline; opacity: 0.9; cursor: pointer; display: inline-block; margin-top: 2px; }
     #mf-doc-link:hover { opacity: 1; color: #ffeb3b; }
@@ -50,6 +54,7 @@
   `;
   document.head.appendChild(style);
 
+  // 3. Inject HTML
   const container = document.createElement('div');
   container.id = 'mf-widget-container';
   container.innerHTML = `
@@ -58,7 +63,7 @@
         <div id="mf-header-top">
             <img src="${AVATAR_URL}" alt="Avatar">
             <div id="mf-bot-info">
-                <div id="mf-bot-name">MindBot</div>
+                <div id="mf-bot-name">${BOT_NAME}</div>
                 <a id="mf-doc-link" href="${PSYCHIATRIST_LINK}" target="_blank">🏥 พบจิตแพทย์ (คลิก)</a>
             </div>
             <div id="mf-header-actions">
@@ -85,7 +90,7 @@
       </div>
       
       <div id="mf-messages">
-        <div class="mf-msg bot">สวัสดีครับ ผม <b>MindBot</b> เพื่อนรับฟังของคุณ 🤖<br>วันนี้อยากคุยเรื่องไหน เลือกหัวข้อด้านบนได้เลยนะครับ</div>
+        <div class="mf-msg bot">สวัสดีครับ ผม <b>${BOT_NAME}</b> เพื่อนรับฟังของคุณ 🤖<br>วันนี้อยากคุยเรื่องไหน เลือกหัวข้อด้านบนได้เลยนะครับ</div>
       </div>
 
       <div id="mf-input-area">
@@ -101,6 +106,7 @@
   `;
   document.body.appendChild(container);
 
+  // 4. Logic
   let messageHistory = [];
   let isSoundOn = false; 
   const chatWindow = document.getElementById('mf-chat-window');
