@@ -1,10 +1,11 @@
 (function() {
-  // --- [CONFIG] แก้ไขข้อมูลของคุณตรงนี้ ---
+  // --- [CONFIG: ตั้งค่าของคุณที่นี่] ---
   const API_URL = "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; 
-  const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg"; // ใส่รูปลิงก์ของคุณ
-  const PSYCHIATRIST_LINK = "https://www.facebook.com/share/p/1BuBPPWjGH/"; // ลิงก์จิตแพทย์
-  const THEME_COLOR = "#007BFF"; 
-  // -------------------------------------
+  const SOCIAL_LINK = "https://lin.ee/BUzH2xD"; // ใส่ลิงก์ LINE OA
+  const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg"; // ใส่ลิงก์รูปโลโก้
+  const PSYCHIATRIST_LINK = "https://www.facebook.com/share/p/1BuBPPWjGH/"; // ลิงก์หมอ
+  const THEME_COLOR = "#007BFF"; // สีฟ้า
+  // -----------------------------------
 
   const style = document.createElement('style');
   style.innerHTML = `
@@ -22,26 +23,20 @@
     #mf-header img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid white; margin-right: 10px; }
     #mf-bot-info { flex: 1; overflow: hidden; }
     #mf-bot-name { font-weight: bold; font-size: 18px; }
-    #mf-header-actions { display: flex; gap: 10px; }
-    #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: white; opacity: 0.9; }
-
-    /* ปุ่มหาหมอ */
-    #mf-doc-link { 
-        font-size: 12px; color: white; text-decoration: underline; opacity: 0.9; cursor: pointer; 
-        margin-top: 2px; display: inline-block;
-    }
+    
+    /* ลิงก์หาหมอ */
+    #mf-doc-link { font-size: 12px; color: white; text-decoration: underline; opacity: 0.9; cursor: pointer; display: inline-block; margin-top: 2px; }
     #mf-doc-link:hover { opacity: 1; color: #ffeb3b; }
 
-    /* Disclaimer */
-    #mf-disclaimer { font-size: 11px; color: rgba(255,255,255,0.85); line-height: 1.3; background: rgba(0,0,0,0.1); padding: 8px; border-radius: 6px; margin-top: 5px; }
+    #mf-header-actions { display: flex; gap: 10px; }
+    #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: white; opacity: 0.9; padding: 0; text-decoration: none; display: flex; align-items: center; }
 
-    /* Dropdown */
+    /* คำเตือน */
+    #mf-disclaimer { font-size: 11px; color: rgba(255,255,255,0.9); line-height: 1.3; background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px; margin-top: 5px; }
+
+    /* Dropdown Case */
     #mf-controls { margin-top: 5px; }
-    .mf-select {
-        width: 100%; background: white; color: #333; border: 1px solid #ddd;
-        border-radius: 8px; padding: 8px; font-size: 14px; font-family: 'Sarabun', sans-serif;
-        cursor: pointer; outline: none;
-    }
+    .mf-select { width: 100%; background: white; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 8px; font-size: 14px; font-family: 'Sarabun', sans-serif; cursor: pointer; outline: none; }
 
     #mf-messages { flex: 1; padding: 15px; overflow-y: auto; background: #f0f8ff; display: flex; flex-direction: column; gap: 12px; }
     .mf-msg { max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 18px; line-height: 1.5; word-wrap: break-word; }
@@ -70,6 +65,7 @@
                 <a id="mf-doc-link" href="${PSYCHIATRIST_LINK}" target="_blank">🏥 พบจิตแพทย์ (คลิก)</a>
             </div>
             <div id="mf-header-actions">
+                <a id="mf-contact-btn" href="${SOCIAL_LINK}" target="_blank" title="แอด LINE">👤</a>
                 <button id="mf-sound-btn" title="เปิด/ปิดเสียง">🔇</button>
                 <span id="mf-close-btn" title="ปิด">×</span>
             </div>
@@ -103,7 +99,7 @@
     </div>
     
     <button id="mf-toggle-btn">
-      <img src="${https://files.catbox.moe/rdkdlq.jpg}" alt="Chat Logo">
+      <img src="${AVATAR_URL}" alt="Chat Logo">
     </button>
   `;
   document.body.appendChild(container);
@@ -135,11 +131,10 @@
 
   window.updateSettings = function() {
     const caseName = caseSelect.options[caseSelect.selectedIndex].text;
-    appendMessage('system', `เปลี่ยนห้องสนทนาเป็น: ${caseName}`);
-    messageHistory = []; // ล้างประวัติเพื่อให้เริ่มเรื่องใหม่ตาม Case ใหม่ได้เนียนขึ้น
+    appendMessage('system', `เปลี่ยนหัวข้อเป็น: ${caseName}`);
+    messageHistory = []; 
   }
 
-  // ... (Voice Recognition Logic เดิม) ...
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   if (SpeechRecognition) {
@@ -166,7 +161,7 @@
 
   async function sendMessage() {
     const text = input.value.trim();
-    const caseType = caseSelect.value; // ส่งค่า caseType
+    const caseType = caseSelect.value;
     
     if (!text) return;
     window.speechSynthesis.cancel();
