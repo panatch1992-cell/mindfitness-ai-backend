@@ -1,7 +1,7 @@
 (function() {
   // --- [Config] ---
   const API_URL = "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; // เช็ค URL ให้ตรง!
-  const SOCIAL_LINK = "https://line.me/ti/p/@mindfitness"; 
+  const SOCIAL_LINK = "https://lin.ee/BUzH2xD"; 
   const THEME_COLOR = "#007BFF"; 
 
   // 1. Inject Styles
