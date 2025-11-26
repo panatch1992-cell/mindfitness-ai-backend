@@ -14,26 +14,29 @@
     #mf-toggle-btn:hover { transform: scale(1.05); }
     #mf-toggle-btn img { width: 100%; height: 100%; object-fit: cover; }
     
-    #mf-chat-window { display: none; width: 380px; max-width: calc(100vw - 40px); height: 600px; max-height: 80vh; background: white; border-radius: 12px; box-shadow: 0 5px 30px rgba(0,0,0,0.25); flex-direction: column; overflow: hidden; position: absolute; bottom: 90px; right: 0; border: 1px solid #e0e0e0; }
+    #mf-chat-window { display: none; width: 380px; max-width: calc(100vw - 40px); height: 650px; /* เพิ่มความสูงนิดนึงให้พอดีปุ่ม */ max-height: 85vh; background: white; border-radius: 12px; box-shadow: 0 5px 30px rgba(0,0,0,0.25); flex-direction: column; overflow: hidden; position: absolute; bottom: 90px; right: 0; border: 1px solid #e0e0e0; }
     
-    #mf-header { background: ${THEME_COLOR}; color: white; padding: 15px; font-weight: bold; font-size: 20px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    #mf-header { background: ${THEME_COLOR}; color: white; padding: 15px; font-weight: bold; font-size: 20px; display: flex; flex-direction: column; gap: 10px; }
+    
+    /* Header แถวบน: รูป + ชื่อ + ปุ่มปิด */
+    #mf-header-top { display: flex; align-items: center; gap: 8px; width: 100%; }
     #mf-header img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid white; }
-    
-    #mf-bot-info { flex: 1; display: flex; align-items: center; gap: 5px; cursor: pointer; overflow: hidden; min-width: 80px; }
-    #mf-bot-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
-    
-    #mf-controls { display: flex; gap: 5px; margin-left: auto; }
+    #mf-bot-info { flex: 1; display: flex; align-items: center; gap: 5px; cursor: pointer; overflow: hidden; }
+    #mf-bot-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+    #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: white; opacity: 0.9; text-decoration: none; display: flex; align-items: center; }
 
-    /* Dropdown เลือก MBTI */
+    /* Header แถวล่าง: ตัวเลือก Dropdowns */
+    #mf-controls { display: flex; gap: 5px; width: 100%; overflow-x: auto; padding-bottom: 2px; }
+    /* ซ่อน Scrollbar */
+    #mf-controls::-webkit-scrollbar { display: none; } 
+
     .mf-select {
         background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4);
-        border-radius: 15px; padding: 2px 5px; font-size: 12px; font-family: 'Sarabun', sans-serif;
-        cursor: pointer; outline: none; max-width: 90px;
+        border-radius: 15px; padding: 4px 8px; font-size: 12px; font-family: 'Sarabun', sans-serif;
+        cursor: pointer; outline: none; white-space: nowrap; flex-shrink: 0;
     }
     .mf-select option { background: white; color: #333; }
 
-    #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: white; opacity: 0.9; text-decoration: none; display: flex; align-items: center; }
-    
     #mf-messages { flex: 1; padding: 15px; overflow-y: auto; background: #f0f8ff; display: flex; flex-direction: column; gap: 12px; }
     .mf-msg { max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 18px; line-height: 1.5; word-wrap: break-word; }
     .mf-msg.user { align-self: flex-end; background: ${THEME_COLOR}; color: white; border-bottom-right-radius: 4px; }
@@ -59,10 +62,14 @@
   container.innerHTML = `
     <div id="mf-chat-window">
       <div id="mf-header">
-        <img src="https://files.catbox.moe/k4s55g.jpg" alt="Avatar">
-        
-        <div id="mf-bot-info" onclick="renameBot()">
-            <span id="mf-bot-name">MINDBOT</span>
+        <div id="mf-header-top">
+            <img src="https://files.catbox.moe/k4s55g.jpg" alt="Avatar">
+            <div id="mf-bot-info" onclick="renameBot()">
+                <span id="mf-bot-name">MINDBOT</span>
+            </div>
+            
+            <button id="mf-sound-btn" title="เปิด/ปิดเสียงอ่าน">🔇</button>
+            <span style="cursor:pointer;" id="mf-close-btn">×</span>
         </div>
 
         <div id="mf-controls">
@@ -74,19 +81,24 @@
             </select>
             
             <select id="mf-mbti-select" class="mf-select" onchange="updateSettings()">
-                <option value="enfj">ENFJ (พี่หมอ)</option>
-                <option value="infp">INFP (นักกวี)</option>
-                <option value="intj">INTJ (นักคิด)</option>
-                <option value="estp">ESTP (สายลุย)</option>
+                <option value="enfj">พี่หมอ (ENFJ)</option>
+                <option value="infp">นักกวี (INFP)</option>
+                <option value="intj">นักคิด (INTJ)</option>
+                <option value="estp">สายลุย (ESTP)</option>
+            </select>
+
+            <select id="mf-exp-select" class="mf-select" onchange="updateSettings()">
+                <option value="general">ทั่วไป</option>
+                <option value="depression">เคยผ่านโรคซึมเศร้า</option>
+                <option value="anxiety">เคยผ่านโรควิตกกังวล</option>
+                <option value="burnout">เคยหมดไฟทำงาน</option>
+                <option value="relationship">เคยผ่านปัญหาความรัก</option>
             </select>
         </div>
-        
-        <button id="mf-sound-btn" title="เปิด/ปิดเสียงอ่าน">🔇</button>
-        <span style="cursor:pointer; margin-left:5px;" id="mf-close-btn">×</span>
       </div>
       
       <div id="mf-messages">
-        <div class="mf-msg bot">สวัสดีครับ ผม <b>MINDBOT</b> เพื่อนรับฟังของคุณ 🤖<br>เลือกสไตล์เพื่อนคู่คิดที่ด้านบนได้เลยนะครับ</div>
+        <div class="mf-msg bot">สวัสดีครับ ผม <b>MINDBOT</b> เพื่อนรับฟังของคุณ 🤖<br>ตั้งค่าเพื่อนคู่คิดที่ตรงใจคุณที่ด้านบนได้เลยนะครับ</div>
       </div>
       
       <div id="mf-chips-area">
@@ -121,8 +133,10 @@
   const micBtn = document.getElementById('mf-mic-btn');
   const soundBtn = document.getElementById('mf-sound-btn');
   const msgContainer = document.getElementById('mf-messages');
+  
   const dialectSelect = document.getElementById('mf-dialect-select');
   const mbtiSelect = document.getElementById('mf-mbti-select');
+  const expSelect = document.getElementById('mf-exp-select'); // New
 
   function speakText(text) {
     if (!isSoundOn) return;
@@ -142,7 +156,8 @@
   window.updateSettings = function() {
     const dialectName = dialectSelect.options[dialectSelect.selectedIndex].text;
     const mbtiName = mbtiSelect.options[mbtiSelect.selectedIndex].text;
-    appendMessage('system', `ตั้งค่า: ภาษา${dialectName} + ${mbtiName}`);
+    const expName = expSelect.options[expSelect.selectedIndex].text;
+    appendMessage('system', `ตั้งค่า: ${dialectName} + ${mbtiName} + ${expName}`);
   }
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -183,7 +198,8 @@
   async function sendMessage() {
     const text = input.value.trim();
     const dialect = dialectSelect.value;
-    const mbti = mbtiSelect.value; // ดึงค่า MBTI
+    const mbti = mbtiSelect.value;
+    const experience = expSelect.value; // ส่งค่าประสบการณ์
     
     if (!text) return;
     window.speechSynthesis.cancel();
@@ -201,11 +217,11 @@
     msgContainer.appendChild(loadingDiv);
     
     try {
-      // ส่งทั้ง dialect และ mbti
+      // ส่งครบ 3 ค่า: dialect, mbti, experience
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: messageHistory, dialect: dialect, mbti: mbti }) 
+        body: JSON.stringify({ messages: messageHistory, dialect, mbti, experience }) 
       });
       const data = await res.json();
       document.getElementById('mf-loading').remove();
