@@ -1,7 +1,7 @@
 (function() {
   // --- [CONFIG] แก้ไขข้อมูลของคุณตรงนี้ ---
   const API_URL = "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; 
-  const AVATAR_URL = "https://files.catbox.moe/k4s55g.jpg"; // ใส่รูปลิงก์ของคุณ
+  const AVATAR_URL = "https://files.catbox.moe/rdkdlq.jpg"; // ใส่รูปลิงก์ของคุณ
   const PSYCHIATRIST_LINK = "https://www.facebook.com/share/p/1BuBPPWjGH/"; // ลิงก์จิตแพทย์
   const THEME_COLOR = "#007BFF"; 
   // -------------------------------------
@@ -103,7 +103,7 @@
     </div>
     
     <button id="mf-toggle-btn">
-      <img src="${AVATAR_URL}" alt="Chat Logo">
+      <img src="${https://files.catbox.moe/rdkdlq.jpg}" alt="Chat Logo">
     </button>
   `;
   document.body.appendChild(container);
