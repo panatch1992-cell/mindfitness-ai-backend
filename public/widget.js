@@ -1,5 +1,5 @@
 (function() {
-  // --- [CONFIG ZONE] แก้ไขลิงก์ของคุณ ---
+  // --- [CONFIG ZONE] ---
   const config = window.MindBotWidgetConfig || {};
   const API_URL = config.backendUrl || "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; 
   const SOCIAL_LINK = config.socialLink || "https://lin.ee/LxpIq6R"; 
@@ -8,7 +8,7 @@
   const QR_CODE_URL = "https://files.catbox.moe/f44tj4.jpg"; 
   const THEME_COLOR = config.themeColor || "#007BFF"; 
   const BOT_NAME = config.assistantName || "MindBot";
-  // -------------------------------------
+  // ---------------------
 
   const style = document.createElement('style');
   style.innerHTML = `
@@ -97,19 +97,21 @@
         <div id="mf-controls">
             <select id="mf-case-select" class="mf-select" onchange="updateSettings()">
                 <option value="general">🍀 ทั่วไป (General)</option>
-                <option value="anxiety">⚡ กังวล/กระวนกระวาย (Anxiety)</option>
-                <option value="sadness">🌧️ เศร้า/เสียใจ (Sadness)</option>
-                <option value="anger">🔥 โกรธ/หงุดหงิด (Anger)</option>
+                <option value="anxiety">⚡ กังวล (Anxiety)</option>
+                <option value="sadness">🌧️ เศร้า (Sadness)</option>
+                <option value="anger">🔥 โกรธ (Anger)</option>
                 <option value="guilt">😞 รู้สึกผิด (Guilt)</option>
                 <option value="fear">😨 หวาดกลัว (Fear)</option>
                 <option value="embarrassment">😳 อับอาย (Embarrassment)</option>
-                <option value="relationship">💔 ความสัมพันธ์</option>
+                <option value="disgust">🤢 รังเกียจ (Disgust)</option>
+                <option value="offense">😤 ขุ่นเคือง (Offense)</option>
+                <option value="relationship">💔 ความรัก (Relationship)</option>
             </select>
         </div>
       </div>
       
       <div id="mf-messages">
-        <div class="mf-msg bot">สวัสดีครับ <b>${BOT_NAME}</b> พร้อมรับฟังครับ 🤖<br>วันนี้รู้สึกอย่างไรบ้าง? เลือกความรู้สึกที่ตรงกับใจคุณได้เลยนะครับ</div>
+        <div class="mf-msg bot">สวัสดีครับ <b>MindBot</b> พร้อมรับฟังครับ 🤖<br>วันนี้รู้สึกอย่างไรบ้าง? เลือกความรู้สึกที่ตรงกับใจคุณได้เลยนะครับ</div>
       </div>
 
       <div id="mf-input-area">
