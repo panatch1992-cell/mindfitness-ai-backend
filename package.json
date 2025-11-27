@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "dependencies": {
     "node-fetch": "^3.3.2",
-    "@line/bot-sdk": "^7.5.2"
+    "@line/bot-sdk": "^7.5.2",
+    "@upstash/redis": "^1.28.0"
   },
   "type": "module"
 }
