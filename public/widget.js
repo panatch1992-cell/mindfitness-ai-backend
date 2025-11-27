@@ -1,5 +1,5 @@
 (function() {
-  // --- [CONFIG ZONE] ---
+  // --- [CONFIG ZONE] แก้ไขลิงก์ของคุณ ---
   const config = window.MindBotWidgetConfig || {};
   const API_URL = config.backendUrl || "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; 
   const SOCIAL_LINK = config.socialLink || "https://lin.ee/LxpIq6R"; 
@@ -8,13 +8,13 @@
   const QR_CODE_URL = "https://files.catbox.moe/f44tj4.jpg"; 
   const THEME_COLOR = config.themeColor || "#007BFF"; 
   const BOT_NAME = config.assistantName || "MindBot";
-  // ---------------------
+  // -------------------------------------
 
   const style = document.createElement('style');
   style.innerHTML = `
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
     #mf-widget-container { position: fixed; bottom: 20px; right: 20px; z-index: 99999; font-family: 'Sarabun', sans-serif; }
-    #mf-toggle-btn { width: 65px; height: 65px; border-radius: 50%; background-color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; border: none; padding: 0; overflow: hidden; transition: transform 0.2s; }
+    #mf-toggle-btn { width: 70px; height: 70px; border-radius: 50%; background-color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; border: none; padding: 0; overflow: hidden; transition: transform 0.2s; }
     #mf-toggle-btn:hover { transform: scale(1.05); }
     #mf-toggle-btn img { width: 100%; height: 100%; object-fit: cover; }
     
@@ -27,7 +27,7 @@
     #mf-bot-name { font-weight: bold; font-size: 18px; }
     #mf-doc-link { font-size: 12px; color: white; text-decoration: underline; opacity: 0.9; cursor: pointer; display: inline-block; margin-top: 2px; }
     #mf-header-actions { display: flex; gap: 10px; }
-    #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 22px; color: white; opacity: 0.9; padding: 0; text-decoration: none; display: flex; align-items: center; }
+    #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: white; opacity: 0.9; padding: 0; text-decoration: none; display: flex; align-items: center; }
 
     #mf-premium-btn { background: linear-gradient(45deg, #FFD700, #FFA500); color: #333; border: none; padding: 6px 12px; border-radius: 15px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 5px; width: fit-content; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 5px; animation: pulse-gold 2s infinite; }
     @keyframes pulse-gold { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
@@ -48,7 +48,7 @@
     #mf-input:focus { border-color: ${THEME_COLOR}; }
     .mf-icon-btn { background: ${THEME_COLOR}; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: 0.2s; }
     
-    /* Modal */
+    /* Modal & Upload */
     #mf-pay-modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; flex-direction: column; align-items: center; padding: 20px; box-sizing: border-box; overflow-y: auto; justify-content: center; }
     #mf-pay-modal img { width: 140px; border-radius: 10px; margin: 10px 0; border: 3px solid white; }
     #mf-upload-box { margin: 10px 0; width: 100%; display: flex; justify-content: center; }
@@ -103,7 +103,7 @@
                 <option value="guilt">😞 รู้สึกผิด (Guilt)</option>
                 <option value="fear">😨 หวาดกลัว (Fear)</option>
                 <option value="embarrassment">😳 อับอาย (Embarrassment)</option>
-                <option value="relationship">💔 ความรัก (Relationship)</option>
+                <option value="relationship">💔 ความสัมพันธ์</option>
             </select>
         </div>
       </div>
@@ -193,7 +193,10 @@
     micBtn.onclick = function() { recognition.start(); };
   } else { micBtn.style.display = 'none'; }
 
-  function toggleChat() { chatWindow.style.display = chatWindow.style.display === 'none' ? 'flex' : 'none'; }
+  function toggleChat() { 
+      const isHidden = chatWindow.style.display === 'none';
+      chatWindow.style.display = isHidden ? 'flex' : 'none';
+  }
   toggleBtn.onclick = toggleChat;
   closeBtn.onclick = toggleChat;
 
