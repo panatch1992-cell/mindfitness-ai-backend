@@ -1,22 +1,7 @@
 import fetch from "node-fetch";
-import { Redis } from "@upstash/redis";
-
-// เชื่อมต่อ Redis (สำหรับ Rate Limit)
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
-
-function getClientIp(req) {
-  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || "unknown";
-}
-
-// Crisis Detection
-const crisisPatterns = [/ฆ่าตัวตาย/i, /อยากตาย/i, /suicide/i, /ไม่อยากอยู่/i];
-function detectCrisis(text) { return crisisPatterns.some(r => r.test(text)); }
 
 export default async function handler(req, res) {
-  // CORS
+  // CORS: อนุญาตทุกเว็บ
   res.setHeader("Access-Control-Allow-Origin", "*"); 
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -25,23 +10,13 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const ip = getClientIp(req);
-    
-    // 1. Redis Rate Limiting (ป้องกันสแปม)
-    const limitKey = `rate_limit:${ip}`;
-    const currentUsage = await redis.incr(limitKey);
-    if (currentUsage === 1) {
-        await redis.expire(limitKey, 60); // รีเซ็ตทุก 60 วินาที
-    }
-    if (currentUsage > 40) {
-        return res.status(429).json({ error: "Too many requests" });
-    }
-
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
     const { messages, caseType = 'general', isPremium = false } = req.body; 
     const lastMessage = messages[messages.length - 1]?.content || "";
 
-    if (detectCrisis(lastMessage)) {
+    // Crisis Check
+    const crisisPatterns = [/ฆ่าตัวตาย/i, /อยากตาย/i, /suicide/i, /ไม่อยากอยู่/i];
+    if (crisisPatterns.some(r => r.test(lastMessage))) {
       return res.json({
         crisis: true,
         message: "CRISIS_DETECTED",
@@ -52,50 +27,65 @@ export default async function handler(req, res) {
       });
     }
 
-    // --- Knowledge Base (Stigma & Research) ---
+    // --- 1. KNOWLEDGE BASE (Social Stigma & Research) ---
     const researchKnowledge = `
-    [KNOWLEDGE BASE: THAI CONTEXT]
-    1. **Social Stigmas:**
-       - "Toxic Positivity" (Facebook/Pantip): Belief that sadness is a sin/ungrateful.
-       - "Attention Seeker" (TikTok/X): Accusation that mental health issues are fake trends.
-       - "Victim Blaming" (Telegram/Scams): Feeling stupid after being scammed.
-    2. **Protocol:** Identify Stigma -> Reflect -> Reframe -> Action.
+    [KNOWLEDGE: THAI SOCIAL STIGMAS & RESEARCH]
+    You must be aware of these specific contexts:
+    1. **Facebook/Pantip ("Ungrateful/Karma"):** Belief that depression is caused by being ungrateful (Akatappanyu) or lack of Dharma.
+    2. **Twitter/X ("Toxic Productivity"):** Burnout viewed as "weakness" or "lazy Gen Z".
+    3. **TikTok ("Attention Seeker"):** Accusation that expressing sadness is just "creating content".
+    4. **Telegram/Closed Groups ("Scam/Isolation"):** Victim blaming in investment scams ("You are stupid for losing money").
+    
+    [CORE PROTOCOL]
+    Identify Emotion -> Validate -> Challenge Stigma (Critical Reflection) -> New Understanding.
     `;
 
-    // --- Case Context (Emotion Based) ---
+    // --- 2. EMOTION CASES (ครบ 8 อารมณ์ตามกราฟวิจัย) ---
     let caseInstruction = "";
     switch (caseType) {
-        case 'anxiety': caseInstruction = `[CASE: ANXIETY] Focus: Restless, Overthinking. Stigma: "Crazy". Goal: Grounding.`; break;
-        case 'sadness': caseInstruction = `[CASE: SADNESS] Focus: Low energy, Anhedonia. Stigma: "Lazy". Goal: Acceptance.`; break;
-        case 'anger': caseInstruction = `[CASE: ANGER] Focus: Frustration. Stigma: "Bad person". Goal: Healthy vent.`; break;
-        case 'guilt': caseInstruction = `[CASE: GUILT] Focus: Self-blame. Stigma: "My fault". Goal: Forgiveness.`; break;
-        case 'fear': caseInstruction = `[CASE: FEAR] Focus: Insecurity. Goal: Safety.`; break;
-        case 'embarrassment': caseInstruction = `[CASE: SHAME] Focus: Hiding. Goal: Normalization.`; break;
-        case 'relationship': caseInstruction = `[CASE: RELATIONSHIP] Focus: Heartbreak. Stigma: "Unlovable".`; break;
-        default: caseInstruction = `[CASE: GENERAL] Focus: Listening.`;
+        case 'anxiety': 
+            caseInstruction = `[CASE: ANXIETY (Rank 1)] Focus: Restless, Overthinking. Stigma: "Crazy/Weak". Goal: Grounding.`; break;
+        case 'sadness': 
+            caseInstruction = `[CASE: SADNESS (Rank 2)] Focus: Low energy, Anhedonia. Stigma: "Lazy/Dramatic". Goal: Acceptance.`; break;
+        case 'anger': 
+            caseInstruction = `[CASE: ANGER (Rank 4)] Focus: Frustration, Resentment. Stigma: "Aggressive/Bad person". Goal: Healthy expression.`; break;
+        case 'guilt': 
+            caseInstruction = `[CASE: GUILT (Rank 5)] Focus: Self-blame. Stigma: "It's all my fault". Goal: Self-forgiveness.`; break;
+        case 'fear': 
+            caseInstruction = `[CASE: FEAR (Rank 6)] Focus: Insecurity. Goal: Safety & Reassurance.`; break;
+        case 'embarrassment': 
+            caseInstruction = `[CASE: EMBARRASSMENT/SHAME (Rank 8)] Focus: Hiding, Loss of face. Stigma: "Humiliated". Goal: Normalizing mistakes.`; break;
+        case 'disgust': 
+            caseInstruction = `[CASE: DISGUST] Focus: Self-loathing or aversion. Stigma: "I am dirty/wrong". Goal: Self-acceptance.`; break;
+        case 'offense': 
+            caseInstruction = `[CASE: OFFENSE] Focus: Feeling insulted or slighted. Stigma: "Too sensitive". Goal: Letting go.`; break;
+        case 'relationship': 
+            caseInstruction = `[CASE: RELATIONSHIP] Focus: Heartbreak, Boundaries. Stigma: "Unlovable".`; break;
+        default: 
+            caseInstruction = `[CASE: GENERAL SUPPORT] Focus: Deep Listening.`;
     }
 
-    // --- Mode Instruction ---
+    // --- 3. MODE (Free vs Premium) ---
     let modeInstruction = isPremium 
-        ? `[MODE: PREMIUM DEEP DIVE] Act as Senior Analyst. Deconstruct Stigma using DSM-5 & Research. Length: 5-8 sentences.`
-        : `[MODE: FREE BASIC SUPPORT] Validate feeling -> Identify Stigma -> Ask 1 Reflective Question. Upsell Premium if asked for solution. Length: 3-4 sentences.`;
+        ? `[MODE: PREMIUM DEEP DIVE] Act as Senior Analyst. Deconstruct Stigma using DSM-5 facts. Length: 5-8 sentences.`
+        : `[MODE: FREE BASIC SUPPORT] Validate feeling -> Identify Stigma -> Ask 1 Reflective Question. Upsell Premium if needed. Length: 3-4 sentences.`;
 
     const systemPrompt = {
       role: "system",
       content: `
       [IDENTITY]
       You are 'MindBot' (or 'น้องมายด์'), a Thai Peer Supporter.
-      **PRONOUNS:** Use "เรา", "MindBot", "หมอ", or "น้องมายด์". Avoid "ผม/ดิฉัน".
-      **TONE:** Gender-neutral, warm, supportive. Mirror the user's politeness.
+      **PRONOUNS:** Use "เรา" (We/I), "MindBot", or "หมอ" (as appropriate). **DO NOT use "ผม" or "ดิฉัน".**
+      **TONE:** Warm, Gender-neutral, Mirroring user's politeness (Ka/Krub).
       
       ${researchKnowledge}
       ${caseInstruction}
       ${modeInstruction}
 
       [METHODOLOGY: CRITICAL REFLECTION]
-      1. **Identify:** Is the user blaming themselves?
-      2. **Reflect:** Challenge the stigma.
-      3. **Reframe:** Shift to self-compassion.
+      1. **Identify Stigma:** Is the user blaming themselves?
+      2. **Reflect:** Challenge it ("Is it really X, or is it Y?").
+      3. **Outcome:** Self-Compassion.
 
       [SAFETY] If suicidal, reply ONLY with contact 1323.`
     };
@@ -116,8 +106,5 @@ export default async function handler(req, res) {
     const aiData = await aiResp.json();
     return res.json({ crisis: false, ai: aiData });
 
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
+  } catch (err) { return res.status(500).json({ error: "Internal Server Error" }); }
 }
