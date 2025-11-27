@@ -1,32 +1,16 @@
 import fetch from "node-fetch";
 
 export default async function handler(req, res) {
-  // -----------------------------------------------------------------
-  // 1. CORS HEADERS (ส่วนสำคัญที่แก้ปัญหา Error สีแดง)
-  // -----------------------------------------------------------------
-  // อนุญาตให้ทุกเว็บเรียกใช้ได้ (แก้ปัญหา Access-Control-Allow-Origin หาย)
+  // 1. CORS: อนุญาตทุกเว็บ (แก้ปัญหา Error สีแดง)
   res.setHeader("Access-Control-Allow-Origin", "*"); 
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  // -----------------------------------------------------------------
-  // 2. Handle Preflight Request (ตอบกลับการเคาะประตูถามทาง)
-  // -----------------------------------------------------------------
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  // -----------------------------------------------------------------
-  // 3. Main Logic (ส่วนสมอง AI เดิม)
-  // -----------------------------------------------------------------
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
-    if (!OPENAI_KEY) return res.status(500).json({ error: "Server missing API Key" });
-
     const { messages, caseType = 'general', isPremium = false } = req.body; 
     const lastMessage = messages[messages.length - 1]?.content || "";
 
@@ -43,32 +27,65 @@ export default async function handler(req, res) {
       });
     }
 
-    // --- Knowledge Base & Instructions ---
+    // --- 1. EXCLUSIVE RESEARCH & STIGMA KNOWLEDGE ---
     const researchKnowledge = `
-    [EXCLUSIVE RESEARCH DATABASE]
-    1. **Social Stigmas:** "Toxic Positivity" (Facebook), "Attention Seeker" (TikTok), "Ungrateful" (Pantip).
-    2. **Protocol:** Identify Stigma -> Reflect -> Reframe.
+    [YOUR EXCLUSIVE RESEARCH KNOWLEDGE]
+    1. **Thai Social Media Stigmas:** - **Facebook/Pantip:** "Ungrateful Child" (ลูกอกตัญญู), "Religious Guilt" (ไม่ปฏิบัติธรรมเลยป่วย).
+       - **Twitter/TikTok:** "Attention Seeker" (เรียกร้องความสนใจ), "Toxic Productivity" (ขี้เกียจ=เลว).
+       - **Telegram:** "Victim Blaming" in scam/investment groups.
+    2. **Research Protocol:** Identify Emotion -> Validate -> Challenge Stigma -> New Understanding.
     `;
 
+    // --- 2. EMOTION-BASED CASES (อิงกราฟวิจัยของคุณ) ---
     let caseInstruction = "";
-    if (caseType === 'depression') caseInstruction = `[CASE: DEPRESSION] Focus: Low energy, Anhedonia. Stigma: Lazy.`;
-    else if (caseType === 'anxiety') caseInstruction = `[CASE: ANXIETY] Focus: Panic, Worry. Stigma: Crazy.`;
-    else if (caseType === 'burnout') caseInstruction = `[CASE: BURNOUT] Focus: Exhaustion. Stigma: Unproductive.`;
-    else if (caseType === 'relationship') caseInstruction = `[CASE: RELATIONSHIP] Focus: Heartbreak. Stigma: Unlovable.`;
-    else caseInstruction = `[CASE: GENERAL] Focus: Stress.`;
+    switch (caseType) {
+        case 'anxiety': // Rank 1
+            caseInstruction = `[CASE: ANXIETY] Focus: Restless, Overthinking. Stigma: "Crazy/Too much". Goal: Grounding.`;
+            break;
+        case 'sadness': // Rank 2
+            caseInstruction = `[CASE: SADNESS] Focus: Low energy, Anhedonia. Stigma: "Lazy/Weak". Goal: Acceptance.`;
+            break;
+        case 'anger': // Rank 4
+            caseInstruction = `[CASE: ANGER] Focus: Frustration. Stigma: "Aggressive/Bad person". Goal: Healthy expression.`;
+            break;
+        case 'guilt': // Rank 5
+            caseInstruction = `[CASE: GUILT] Focus: Self-blame. Stigma: "It's all my fault". Goal: Self-forgiveness.`;
+            break;
+        case 'fear': // Rank 6
+            caseInstruction = `[CASE: FEAR] Focus: Insecurity. Goal: Safety.`;
+            break;
+        case 'embarrassment': // Rank 8
+            caseInstruction = `[CASE: SHAME] Focus: Hiding. Stigma: "Loss of Face". Goal: Normalize mistakes.`;
+            break;
+        case 'relationship':
+            caseInstruction = `[CASE: RELATIONSHIP] Focus: Heartbreak. Stigma: "Unlovable".`;
+            break;
+        default:
+            caseInstruction = `[CASE: GENERAL] Focus: Listening.`;
+    }
 
+    // --- 3. MODE: FREE vs PREMIUM ---
     let modeInstruction = isPremium 
-        ? `[MODE: PREMIUM] Deep Analysis (DSM-5 based). Deconstruct Stigma. Length: 5-8 sentences.`
-        : `[MODE: FREE] Listen & Validate. Brief Reflection. Upsell Premium if asked for deep advice. Length: 3-4 sentences.`;
+        ? `[MODE: PREMIUM DEEP DIVE] Act as Senior Analyst. Deconstruct Stigma using DSM-5 & Research. Length: 5-8 sentences.`
+        : `[MODE: FREE BASIC SUPPORT] Validate feeling -> Identify Stigma -> Ask 1 Reflective Question. Upsell Premium if deep advice needed. Length: 3-4 sentences.`;
 
     const systemPrompt = {
       role: "system",
       content: `
-      [IDENTITY] You are 'MindBot', a Thai male peer supporter (ผม/ครับ).
+      [IDENTITY]
+      You are 'MindBot' (or 'น้องมายด์'), a Thai Peer Supporter.
+      **PRONOUNS:** Use "เรา", "MindBot", "หมอ", or "น้องมายด์". Avoid "ผม/ดิฉัน".
+      **TONE:** Gender-neutral, warm, supportive. Mirror the user's politeness (Ka/Krub).
+      
       ${researchKnowledge}
       ${caseInstruction}
       ${modeInstruction}
-      [METHODOLOGY] Critical Reflection.
+
+      [CORE METHODOLOGY: CRITICAL REFLECTION]
+      1. **Identify Stigma:** Is the user blaming themselves based on social norms?
+      2. **Reflection:** Challenge it ("Is it really X, or is it Y?").
+      3. **Outcome:** Self-Compassion.
+
       [SAFETY] If suicidal, reply ONLY with contact 1323.`
     };
 
@@ -84,12 +101,6 @@ export default async function handler(req, res) {
       headers: { "Authorization": `Bearer ${OPENAI_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-
-    if (!aiResp.ok) {
-        const errText = await aiResp.text();
-        console.error("OpenAI Error:", errText);
-        throw new Error("OpenAI API Error");
-    }
 
     const aiData = await aiResp.json();
     return res.json({ crisis: false, ai: aiData });
