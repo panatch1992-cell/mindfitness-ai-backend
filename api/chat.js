@@ -1,102 +1,82 @@
 import fetch from "node-fetch";
 
-const ALLOWED_ORIGINS = [
-  "https://www.mindfitness.co",
-  "https://mindfitness.co",
-  "http://localhost:3000",
-  "http://127.0.0.1:3000"
-];
-
-function getClientIp(req) { return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || "unknown"; }
-const rateLimitMap = new Map();
-function isRateLimited(ip) { return false; } 
-const crisisPatterns = [/ฆ่าตัวตาย/i, /อยากตาย/i, /suicide/i];
-function detectCrisis(text) { return crisisPatterns.some(r => r.test(text)); }
-
 export default async function handler(req, res) {
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  // -----------------------------------------------------------------
+  // 1. CORS HEADERS (ส่วนสำคัญที่แก้ปัญหา Error สีแดง)
+  // -----------------------------------------------------------------
+  // อนุญาตให้ทุกเว็บเรียกใช้ได้ (แก้ปัญหา Access-Control-Allow-Origin หาย)
+  res.setHeader("Access-Control-Allow-Origin", "*"); 
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  // -----------------------------------------------------------------
+  // 2. Handle Preflight Request (ตอบกลับการเคาะประตูถามทาง)
+  // -----------------------------------------------------------------
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  // -----------------------------------------------------------------
+  // 3. Main Logic (ส่วนสมอง AI เดิม)
+  // -----------------------------------------------------------------
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   try {
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
+    if (!OPENAI_KEY) return res.status(500).json({ error: "Server missing API Key" });
+
     const { messages, caseType = 'general', isPremium = false } = req.body; 
     const lastMessage = messages[messages.length - 1]?.content || "";
 
-    if (detectCrisis(lastMessage)) {
-      return res.json({ crisis: true, message: "CRISIS_DETECTED" });
+    // --- Crisis Check ---
+    const crisisPatterns = [/ฆ่าตัวตาย/i, /อยากตาย/i, /suicide/i, /ไม่อยากอยู่/i];
+    if (crisisPatterns.some(r => r.test(lastMessage))) {
+      return res.json({
+        crisis: true,
+        message: "CRISIS_DETECTED",
+        resources: [
+          { country: "Thailand", name: "สายด่วนสุขภาพจิต 1323", info: "โทร 1323 ฟรี 24 ชม." },
+          { name: "Samaritans", info: "โทร 02-713-6793" }
+        ]
+      });
     }
 
-    // ---------------------------------------------------------
-    // 1. 🧠 EXCLUSIVE RESEARCH DATABASE (พื้นที่ใส่ขุมทรัพย์ความรู้ของคุณ)
-    // ---------------------------------------------------------
+    // --- Knowledge Base & Instructions ---
     const researchKnowledge = `
-    [YOUR EXCLUSIVE RESEARCH KNOWLEDGE]
-    1. **Social Media Stigma:** "Toxic Positivity" (Pantip/FB) makes people feel guilty for being sad. "Attention Seeker" label (Twitter/TikTok) invalidates pain.
-    2. **Your Specific Research:** [REPLACE THIS WITH YOUR RESEARCH] (e.g., "Thai adolescents recover 30% faster when using 'Emotional Boundaries' rather than just 'Patience' (Khwam Od-Ton).")
-    3. **Recovery Protocol:** Step 1: Validate -> Step 2: Challenge Stigma -> Step 3: Small Action.
+    [EXCLUSIVE RESEARCH DATABASE]
+    1. **Social Stigmas:** "Toxic Positivity" (Facebook), "Attention Seeker" (TikTok), "Ungrateful" (Pantip).
+    2. **Protocol:** Identify Stigma -> Reflect -> Reframe.
     `;
 
-    // ---------------------------------------------------------
-    // 2. 📚 DSM-5 & CASE CONTEXT
-    // ---------------------------------------------------------
     let caseInstruction = "";
-    if (caseType === 'depression') caseInstruction = `[CASE: DEPRESSION] Focus: Anhedonia, Fatigue. Stigma: "Lazy".`;
-    else if (caseType === 'anxiety') caseInstruction = `[CASE: ANXIETY] Focus: Panic, Worry. Stigma: "Crazy/Overthinking".`;
-    else if (caseType === 'burnout') caseInstruction = `[CASE: BURNOUT] Focus: Exhaustion. Stigma: "Unproductive".`;
-    else if (caseType === 'relationship') caseInstruction = `[CASE: RELATIONSHIP] Focus: Heartbreak. Stigma: "Unlovable".`;
-    else caseInstruction = `[CASE: GENERAL] Focus: Daily Stress.`;
+    if (caseType === 'depression') caseInstruction = `[CASE: DEPRESSION] Focus: Low energy, Anhedonia. Stigma: Lazy.`;
+    else if (caseType === 'anxiety') caseInstruction = `[CASE: ANXIETY] Focus: Panic, Worry. Stigma: Crazy.`;
+    else if (caseType === 'burnout') caseInstruction = `[CASE: BURNOUT] Focus: Exhaustion. Stigma: Unproductive.`;
+    else if (caseType === 'relationship') caseInstruction = `[CASE: RELATIONSHIP] Focus: Heartbreak. Stigma: Unlovable.`;
+    else caseInstruction = `[CASE: GENERAL] Focus: Stress.`;
 
-    // ---------------------------------------------------------
-    // 3. 💎 MODE: FREE vs PREMIUM
-    // ---------------------------------------------------------
-    let modeInstruction = "";
-    let maxTokens = 500;
-
-    if (isPremium) {
-        modeInstruction = `
-        [MODE: PREMIUM DEEP DIVE]
-        - **Task:** Act as a Senior Analyst Peer Supporter.
-        - **Method:** Use the [EXCLUSIVE RESEARCH KNOWLEDGE] above to provide a deep root-cause analysis.
-        - **Structure:** 1. 🔍 **Deconstruct Belief:** Show how their belief is linked to Stigma.
-          2. 🧠 **Scientific/Research Insight:** Explain *why* this happens using DSM-5 or your research.
-          3. 🛠️ **Action Plan:** Specific, evidence-based steps.
-        - **Length:** Detailed (5-8 sentences).
-        `;
-        maxTokens = 1500;
-    } else {
-        modeInstruction = `
-        [MODE: FREE BASIC SUPPORT]
-        - **Task:** Act as a Supportive Friend.
-        - **Method:** Validate feeling -> Identify Stigma -> Ask *one* reflective question.
-        - **Restriction:** Do NOT give deep analysis. Keep it short (3-4 sentences).
-        - **Upsell:** If they ask for "How to fix" or "Why", invite them to Premium.
-        `;
-    }
+    let modeInstruction = isPremium 
+        ? `[MODE: PREMIUM] Deep Analysis (DSM-5 based). Deconstruct Stigma. Length: 5-8 sentences.`
+        : `[MODE: FREE] Listen & Validate. Brief Reflection. Upsell Premium if asked for deep advice. Length: 3-4 sentences.`;
 
     const systemPrompt = {
       role: "system",
       content: `
-      [IDENTITY]
-      You are 'MindBot', a Thai male peer supporter (use "ผม/ครับ").
-      
+      [IDENTITY] You are 'MindBot', a Thai male peer supporter (ผม/ครับ).
       ${researchKnowledge}
       ${caseInstruction}
       ${modeInstruction}
-
-      [CORE METHODOLOGY: CRITICAL REFLECTION]
-      1. **Active Ingredient:** Find the Stigma (Self-Blame).
-      2. **Reflection:** Challenge it ("Is it really X, or is it Y?").
-      3. **Outcome:** Self-Compassion.
-
-      [SAFETY]
-      If suicidal, reply ONLY with contact 1323.`
+      [METHODOLOGY] Critical Reflection.
+      [SAFETY] If suicidal, reply ONLY with contact 1323.`
     };
 
     const payload = {
       model: "gpt-4o-mini",
       messages: [systemPrompt, ...messages],
-      temperature: 0.7, 
-      max_tokens: maxTokens
+      temperature: 0.8, 
+      max_tokens: isPremium ? 1500 : 600
     };
 
     const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -105,8 +85,17 @@ export default async function handler(req, res) {
       body: JSON.stringify(payload)
     });
 
+    if (!aiResp.ok) {
+        const errText = await aiResp.text();
+        console.error("OpenAI Error:", errText);
+        throw new Error("OpenAI API Error");
+    }
+
     const aiData = await aiResp.json();
     return res.json({ crisis: false, ai: aiData });
 
-  } catch (err) { return res.status(500).json({ error: "Error" }); }
+  } catch (err) {
+    console.error("Handler Error:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
 }
