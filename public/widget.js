@@ -1,102 +1,111 @@
 (function() {
-  // --- [CONFIG ZONE: แก้ไขข้อมูลของคุณที่นี่] ---
-  // ถ้าคุณใช้ Config ใน Hostinger โค้ดบรรทัดถัดไปจะดึงค่ามาใช้ ถ้าไม่มีจะใช้ค่า Default ในนี้
+  // --- [CONFIG ZONE] ---
   const config = window.MindBotWidgetConfig || {};
-
   const API_URL = config.backendUrl || "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; 
-  const SOCIAL_LINK = config.socialLink || "https://lin.ee/BUzH2xD"; // ลิงก์ LINE OA
-  const AVATAR_URL = config.avatar || "https://files.catbox.moe/rdkdlq.jpg"; // ลิงก์รูปโลโก้
-  const PSYCHIATRIST_LINK = config.psychiatristLink || "https://www.facebook.com/share/p/1BuBPPWjGH/"; // ลิงก์หมอ
-  const QR_CODE_URL = "https://files.catbox.moe/7v14nh.jpg"; // ลิงก์ QR Code รับเงิน
-  const THEME_COLOR = config.themeColor || "#007BFF"; // สีฟ้า
+  const SOCIAL_LINK = config.socialLink || "https://lin.ee/BUzH2xD"; 
+  const AVATAR_URL = config.avatar || "https://files.catbox.moe/rdkdlq.jpg"; 
+  const PSYCHIATRIST_LINK = config.psychiatristLink || "https://www.facebook.com/share/p/1BuBPPWjGH/";
+  const QR_CODE_URL = "https://files.catbox.moe/7v14nh.jpg"; 
+  const THEME_COLOR = config.themeColor || "#007BFF"; 
   const BOT_NAME = config.assistantName || "MindBot";
-  // ---------------------------------------------
+  // ---------------------
 
-  // 1. Inject Styles (รวม CSS ทั้งหมด)
   const style = document.createElement('style');
   style.innerHTML = `
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
     #mf-widget-container { position: fixed; bottom: 20px; right: 20px; z-index: 99999; font-family: 'Sarabun', sans-serif; }
     
-    /* Toggle Button */
-    #mf-toggle-btn { width: 70px; height: 70px; border-radius: 50%; background-color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; border: none; padding: 0; overflow: hidden; transition: transform 0.2s; }
+    #mf-toggle-btn { width: 65px; height: 65px; border-radius: 50%; background-color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; border: none; padding: 0; overflow: hidden; transition: transform 0.2s; }
     #mf-toggle-btn:hover { transform: scale(1.05); }
     #mf-toggle-btn img { width: 100%; height: 100%; object-fit: cover; }
     
-    /* Chat Window */
-    #mf-chat-window { display: none; width: 380px; max-width: calc(100vw - 40px); height: 650px; max-height: 85vh; background: white; border-radius: 12px; box-shadow: 0 5px 30px rgba(0,0,0,0.25); flex-direction: column; overflow: hidden; position: absolute; bottom: 90px; right: 0; border: 1px solid #e0e0e0; }
+    /* --- [Mobile Optimized Chat Window] --- */
+    #mf-chat-window { 
+        display: none; 
+        width: 380px; 
+        max-width: calc(100vw - 40px); /* เว้นขอบซ้ายขวาข้างละ 20px ในมือถือ */
+        height: 650px; 
+        max-height: 70vh; /* ลดความสูงลงเหลือ 70% ของจอ (กันติดขอบบน/ล่าง) */
+        background: white; 
+        border-radius: 16px; 
+        box-shadow: 0 5px 30px rgba(0,0,0,0.25); 
+        flex-direction: column; 
+        overflow: hidden; 
+        position: absolute; 
+        bottom: 85px; /* ยกสูงขึ้นจากปุ่ม */
+        right: 0; 
+        border: 1px solid #e0e0e0; 
+    }
     
     /* Header */
-    #mf-header { background: ${THEME_COLOR}; color: white; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+    #mf-header { background: ${THEME_COLOR}; color: white; padding: 15px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
     #mf-header-top { display: flex; align-items: center; width: 100%; }
     #mf-header img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid white; margin-right: 10px; }
     #mf-bot-info { flex: 1; overflow: hidden; }
     #mf-bot-name { font-weight: bold; font-size: 18px; }
     #mf-doc-link { font-size: 12px; color: white; text-decoration: underline; opacity: 0.9; cursor: pointer; display: inline-block; margin-top: 2px; }
-    #mf-doc-link:hover { opacity: 1; color: #ffeb3b; }
-    
-    /* Header Actions */
     #mf-header-actions { display: flex; gap: 10px; }
-    #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: white; opacity: 0.9; padding: 0; text-decoration: none; display: flex; align-items: center; }
+    #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 22px; color: white; opacity: 0.9; padding: 0; text-decoration: none; display: flex; align-items: center; }
 
     /* Premium Button */
-    #mf-premium-btn { background: linear-gradient(45deg, #FFD700, #FFA500); color: #333; border: none; padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 5px; width: fit-content; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 5px; animation: pulse-gold 2s infinite; }
+    #mf-premium-btn { background: linear-gradient(45deg, #FFD700, #FFA500); color: #333; border: none; padding: 6px 12px; border-radius: 15px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 5px; width: fit-content; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 5px; animation: pulse-gold 2s infinite; }
     @keyframes pulse-gold { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-    /* Disclaimer */
-    #mf-disclaimer { font-size: 11px; color: rgba(255,255,255,0.9); line-height: 1.3; background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px; margin-top: 5px; }
+    #mf-disclaimer { font-size: 11px; color: rgba(255,255,255,0.95); line-height: 1.3; background: rgba(0,0,0,0.15); padding: 8px; border-radius: 6px; margin-top: 5px; }
 
-    /* Controls (Select) */
+    /* Controls */
     #mf-controls { margin-top: 5px; }
     .mf-select { width: 100%; background: white; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 8px; font-size: 14px; font-family: 'Sarabun', sans-serif; cursor: pointer; outline: none; }
 
-    /* Messages Area */
+    /* Messages */
     #mf-messages { flex: 1; padding: 15px; overflow-y: auto; background: #f0f8ff; display: flex; flex-direction: column; gap: 12px; }
-    .mf-msg { max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 18px; line-height: 1.5; word-wrap: break-word; }
+    .mf-msg { max-width: 85%; padding: 12px 16px; border-radius: 16px; font-size: 16px; line-height: 1.5; word-wrap: break-word; }
     .mf-msg.user { align-self: flex-end; background: ${THEME_COLOR}; color: white; border-bottom-right-radius: 4px; }
     .mf-msg.bot { align-self: flex-start; background: #ffffff; color: #333; border: 1px solid #e0e0e0; border-bottom-left-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-    .mf-msg.system { align-self: center; background: #fff3cd; color: #856404; font-size: 13px; text-align: center; width: 95%; margin: 5px 0; border-radius: 8px; padding: 8px; }
+    .mf-msg.system { align-self: center; background: #fff3cd; color: #856404; font-size: 12px; text-align: center; width: 95%; margin: 5px 0; border-radius: 8px; padding: 8px; }
     
     /* Input Area */
-    #mf-input-area { padding: 12px; border-top: 1px solid #eee; display: flex; gap: 8px; background: white; align-items: center; }
-    #mf-input { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 30px; outline: none; font-size: 18px; }
+    #mf-input-area { padding: 12px; border-top: 1px solid #eee; display: flex; gap: 8px; background: white; align-items: center; flex-shrink: 0; }
+    #mf-input { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 30px; outline: none; font-size: 16px; }
     #mf-input:focus { border-color: ${THEME_COLOR}; }
-    .mf-icon-btn { background: ${THEME_COLOR}; color: white; border: none; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: 0.2s; }
+    .mf-icon-btn { background: ${THEME_COLOR}; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: 0.2s; }
     
-    /* Payment Modal */
-    #mf-pay-modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white; padding: 20px; }
-    #mf-pay-modal img { width: 180px; border-radius: 10px; margin: 15px 0; border: 3px solid white; }
-    #mf-pay-close { position: absolute; top: 10px; right: 10px; cursor: pointer; font-size: 24px; }
+    /* Modal Fix for Mobile */
+    #mf-pay-modal { 
+        display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.9); z-index: 100; 
+        flex-direction: column; align-items: center; 
+        padding: 20px; box-sizing: border-box;
+        overflow-y: auto; justify-content: center;
+    }
+    #mf-pay-modal img { width: 140px; border-radius: 10px; margin: 10px 0; border: 3px solid white; }
     
-    /* Upload Slip Section */
-    #mf-upload-box { margin: 15px 0; width: 100%; display: flex; justify-content: center; }
+    #mf-upload-box { margin: 10px 0; width: 100%; display: flex; justify-content: center; }
     #mf-slip-input { display: none; } 
-    #mf-upload-label { background: #444; padding: 10px 20px; border-radius: 8px; cursor: pointer; border: 1px dashed #888; font-size: 14px; color: #ccc; transition: 0.2s; }
-    #mf-upload-label:hover { background: #555; color: white; }
+    #mf-upload-label { background: #444; padding: 8px 15px; border-radius: 8px; cursor: pointer; border: 1px dashed #888; font-size: 14px; color: #ccc; transition: 0.2s; }
     
-    /* Confirm Button (Hidden initially) */
-    #mf-pay-confirm { display: none; background: #28a745; color: white; border: none; padding: 10px 25px; border-radius: 25px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 10px rgba(40, 167, 69, 0.4); }
-    #mf-pay-confirm:hover { transform: scale(1.05); }
+    #mf-pay-confirm { display: none; background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 25px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    #mf-pay-close { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 28px; color: white; z-index: 101; }
   `;
   document.head.appendChild(style);
 
-  // 2. Inject HTML Structure
+  // 2. Inject HTML
   const container = document.createElement('div');
   container.id = 'mf-widget-container';
   container.innerHTML = `
     <div id="mf-chat-window">
       <div id="mf-pay-modal">
         <span id="mf-pay-close" onclick="closePayModal()">×</span>
-        <h3>💎 เจาะลึก (Premium 59.-)</h3>
-        <p>สแกนเพื่อรับบทวิเคราะห์เชิงลึก<br>พร้อมแนบสลิปเพื่อยืนยัน</p>
-        <img src="${QR_CODE_URL}" alt="QR Code">
-        
-        <div id="mf-upload-box">
-            <label for="mf-slip-input" id="mf-upload-label">📎 แนบสลิปโอนเงิน</label>
-            <input type="file" id="mf-slip-input" accept="image/*" onchange="handleSlipUpload()">
+        <div style="margin-top: auto; margin-bottom: auto; display: flex; flex-direction: column; align-items: center;">
+            <h3>💎 เจาะลึก (Premium 59.-)</h3>
+            <p style="font-size:14px;">สแกนเพื่อรับบทวิเคราะห์เชิงลึก</p>
+            <img src="${QR_CODE_URL}" alt="QR Code">
+            <div id="mf-upload-box">
+                <label for="mf-slip-input" id="mf-upload-label">📎 แนบสลิปโอนเงิน</label>
+                <input type="file" id="mf-slip-input" accept="image/*" onchange="handleSlipUpload()">
+            </div>
+            <button id="mf-pay-confirm" onclick="confirmPay()">✅ ยืนยันการโอน</button>
         </div>
-
-        <button id="mf-pay-confirm" onclick="confirmPay()">✅ ยืนยันการโอน</button>
       </div>
 
       <div id="mf-header">
@@ -112,11 +121,8 @@
                 <span id="mf-close-btn" title="ปิด">×</span>
             </div>
         </div>
-        
         <button id="mf-premium-btn" onclick="openPayModal()">💎 สมัครโหมดเจาะลึก (Premium)</button>
-
         <div id="mf-disclaimer">เราไม่ใช่จิตแพทย์ แต่เราคือพื้นที่เรียนรู้เรื่องสุขภาพจิตจากประสบการณ์จริงของผู้คน</div>
-
         <div id="mf-controls">
             <select id="mf-case-select" class="mf-select" onchange="updateSettings()">
                 <option value="general">🍀 พื้นที่พักใจ (ทั่วไป)</option>
@@ -145,7 +151,7 @@
   `;
   document.body.appendChild(container);
 
-  // 3. Logic Implementation
+  // 3. Logic (เหมือนเดิม)
   let messageHistory = [];
   let isSoundOn = false; 
   let isPremiumMode = false;
@@ -164,19 +170,15 @@
   const uploadLabel = document.getElementById('mf-upload-label');
   const payConfirmBtn = document.getElementById('mf-pay-confirm');
 
-  // --- Payment Functions ---
   window.openPayModal = function() { payModal.style.display = 'flex'; }
   window.closePayModal = function() { payModal.style.display = 'none'; }
   
   window.handleSlipUpload = function() {
       const fileInput = document.getElementById('mf-slip-input');
       if (fileInput.files.length > 0) {
-          // เปลี่ยนปุ่มแนบรูปเป็นสีเขียว และแสดงชื่อไฟล์
-          uploadLabel.innerText = "✅ แนบสลิปแล้ว (" + fileInput.files[0].name.substring(0, 10) + "...)";
+          uploadLabel.innerText = "✅ แนบสลิปแล้ว";
           uploadLabel.style.background = "#28a745";
           uploadLabel.style.color = "white";
-          uploadLabel.style.border = "none";
-          // แสดงปุ่มยืนยัน
           payConfirmBtn.style.display = "block";
       }
   }
@@ -184,20 +186,16 @@
   window.confirmPay = function() {
     isPremiumMode = true;
     payModal.style.display = 'none';
-    premiumBtn.style.display = 'none'; // ซ่อนปุ่มสมัคร
+    premiumBtn.style.display = 'none';
     appendMessage('system', "🎉 ได้รับสลิปแล้ว! เปิดใช้งานโหมดเจาะลึก (Premium) เรียบร้อยครับ");
-    appendMessage('bot', "ขอบคุณที่สนับสนุนครับ! ตอนนี้ผมพร้อมวิเคราะห์เชิงลึกให้คุณแล้ว เล่าปัญหามาได้เต็มที่เลยครับ 👇");
+    appendMessage('bot', "ขอบคุณครับ! ระบบพร้อมวิเคราะห์เชิงลึกแล้ว เล่าปัญหาของคุณมาได้เลยครับ 👇");
   }
-  // -------------------------
 
-  // --- Text to Speech ---
   function speakText(text) {
     if (!isSoundOn) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'th-TH'; 
-    utterance.rate = 1.0; 
-    window.speechSynthesis.speak(utterance);
+    utterance.lang = 'th-TH'; utterance.rate = 1.0; window.speechSynthesis.speak(utterance);
   }
 
   soundBtn.onclick = function() {
@@ -208,10 +206,9 @@
   window.updateSettings = function() {
     const caseName = caseSelect.options[caseSelect.selectedIndex].text;
     appendMessage('system', `เปลี่ยนหัวข้อเป็น: ${caseName}`);
-    messageHistory = []; 
+    messageHistory = [];
   }
 
-  // --- Voice Recognition ---
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   if (SpeechRecognition) {
@@ -223,12 +220,9 @@
     micBtn.onclick = function() { recognition.start(); };
   } else { micBtn.style.display = 'none'; }
 
-  // --- Chat UI Toggles ---
   function toggleChat() { 
       const isHidden = chatWindow.style.display === 'none';
       chatWindow.style.display = isHidden ? 'flex' : 'none';
-      if(isHidden) { // Reset notification badge if any 
-      }
   }
   toggleBtn.onclick = toggleChat;
   closeBtn.onclick = toggleChat;
@@ -242,7 +236,6 @@
     if (role === 'bot' && isSoundOn) { const plainText = text.replace(/<[^>]*>?/gm, ''); speakText(plainText); }
   }
 
-  // --- Send Message Logic ---
   async function sendMessage() {
     const text = input.value.trim();
     const caseType = caseSelect.value;
@@ -268,7 +261,6 @@
       });
       const data = await res.json();
       document.getElementById('mf-loading').remove();
-      
       if (data.crisis) {
         appendMessage('system', "⚠️ หากรู้สึกไม่ไหว โปรดติดต่อ 1323");
         if (data.resources) data.resources.forEach(r => appendMessage('bot', `📞 ${r.name}: ${r.info}`));
@@ -277,15 +269,14 @@
         appendMessage('bot', reply);
         messageHistory.push({ role: "assistant", content: reply });
       } else {
-        appendMessage('bot', "ระบบไม่ตอบสนอง (ลองใหม่อีกครั้ง)");
+        appendMessage('bot', "ระบบไม่ตอบสนอง");
       }
     } catch (err) {
       document.getElementById('mf-loading')?.remove();
-      appendMessage('system', "เชื่อมต่อไม่ได้ (ตรวจสอบอินเทอร์เน็ต)");
+      appendMessage('system', "เชื่อมต่อไม่ได้");
     }
     sendBtn.disabled = false;
   }
-  
   sendBtn.onclick = sendMessage;
   input.onkeydown = (e) => { if(e.key==='Enter') sendMessage(); };
 })();
