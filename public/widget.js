@@ -3,7 +3,7 @@
   const config = window.MindBotWidgetConfig || {};
   const API_URL = config.backendUrl || "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; 
   const SOCIAL_LINK = config.socialLink || "https://lin.ee/LxpIq6R"; 
-  const AVATAR_URL = config.avatar || "https://files.catbox.moe/rdkdlq.jpg"; 
+  const AVATAR_URL = config.avatar || "https://files.catbox.moe/or3fxp.jpg"; 
   const PSYCHIATRIST_LINK = config.psychiatristLink || "https://www.facebook.com/share/p/1BuBPPWjGH/";
   const QR_CODE_URL = "https://files.catbox.moe/f44tj4.jpg"; 
   const THEME_COLOR = config.themeColor || "#007BFF"; 
