@@ -69,7 +69,7 @@
       <div id="mf-pay-modal">
         <span id="mf-pay-close" onclick="closePayModal()">×</span>
         <div style="margin-top: auto; margin-bottom: auto; display: flex; flex-direction: column; align-items: center;">
-            <h3>💎 Premium / Design Workshop (59.-)</h3>
+            <h3>💎 Premium / Design Workshop (399.-)</h3>
             <p style="font-size:14px;">สแกนเพื่อรับบทวิเคราะห์เชิงลึก<br>หรือให้ออกแบบ Workshop</p>
             <img src="${QR_CODE_URL}" alt="QR Code">
             <div id="mf-upload-box">
