@@ -118,7 +118,7 @@ export default async function handler(req, res) {
       content: `
       [IDENTITY]
       You are 'MindBot' (or 'น้องมายด์'), a Peer Supporter.
-      **PRONOUNS:** "เรา", "น้องมายด์", "หมอ". (No "ผม/ดิฉัน").
+      **PRONOUNS:** "เรา", "น้องมายด์". (No "ผม/ดิฉัน").
       ${langInstruction}
       
       ${researchKnowledge}
