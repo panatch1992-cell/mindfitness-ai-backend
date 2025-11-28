@@ -93,7 +93,7 @@ export default async function handler(req, res) {
           // Trigger จ่ายเงิน
           if (["สมัคร", "premium", "จ่ายเงิน", "buy", "pay"].includes(txt.toLowerCase())) {
               return client.replyMessage(event.replyToken, [
-                  { type: "text", text: "💎 Premium Access / Design Workshop (59.-)\n(Scan & Send Slip / ส่งสลิปเพื่อปลดล็อก)" },
+                  { type: "text", text: "💎 Premium Access / Design Workshop (299.-)\n(Scan & Send Slip / ส่งสลิปเพื่อปลดล็อก)" },
                   { type: "image", originalContentUrl: QR_CODE_URL, previewImageUrl: QR_CODE_URL }
               ]);
           }
