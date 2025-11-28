@@ -1,5 +1,5 @@
 (function() {
-  // --- [CONFIG ZONE] ---
+  // --- [CONFIG ZONE: คงของเดิม + เพิ่มค่าภาษา] ---
   const config = window.MindBotWidgetConfig || {};
   const API_URL = config.backendUrl || "https://mindfitness-ai-backend-4lfy.vercel.app/api/chat"; 
   const SOCIAL_LINK = config.socialLink || "https://lin.ee/LxpIq6R"; 
@@ -8,6 +8,9 @@
   const QR_CODE_URL = "https://files.catbox.moe/f44tj4.jpg"; 
   const THEME_COLOR = config.themeColor || "#007BFF"; 
   const BOT_NAME = config.assistantName || "MindBot";
+  
+  // [NEW] รับค่าภาษาจากหน้าเว็บ (ถ้าไม่ส่งมาใช้ 'th')
+  const CURRENT_LANG = config.language || 'th'; 
   // ---------------------
 
   const style = document.createElement('style');
@@ -66,8 +69,8 @@
       <div id="mf-pay-modal">
         <span id="mf-pay-close" onclick="closePayModal()">×</span>
         <div style="margin-top: auto; margin-bottom: auto; display: flex; flex-direction: column; align-items: center;">
-            <h3>💎 เจาะลึก (Premium 59.-)</h3>
-            <p style="font-size:14px;">สแกนเพื่อรับบทวิเคราะห์เชิงลึก</p>
+            <h3>💎 Premium / Design Workshop (59.-)</h3>
+            <p style="font-size:14px;">สแกนเพื่อรับบทวิเคราะห์เชิงลึก<br>หรือให้ออกแบบ Workshop</p>
             <img src="${QR_CODE_URL}" alt="QR Code">
             <div id="mf-upload-box">
                 <label for="mf-slip-input" id="mf-upload-label">📎 แนบสลิปโอนเงิน</label>
@@ -91,7 +94,8 @@
             </div>
         </div>
         
-        <button id="mf-premium-btn" onclick="openPayModal()">💎 สมัครโหมดเจาะลึก (Premium)</button>
+        <button id="mf-premium-btn" onclick="openPayModal()">💎 Premium / ออกแบบ Workshop</button>
+
         <div id="mf-disclaimer">เราไม่ใช่จิตแพทย์ แต่เราคือพื้นที่เรียนรู้เรื่องสุขภาพจิตจากประสบการณ์จริงของผู้คน</div>
         
         <div id="mf-controls">
@@ -106,12 +110,14 @@
                 <option value="disgust">🤢 รังเกียจ (Disgust)</option>
                 <option value="offense">😤 ขุ่นเคือง (Offense)</option>
                 <option value="relationship">💔 ความรัก (Relationship)</option>
+                
+                <option value="workshop_design">✨ ออกแบบ Workshop (Premium)</option>
             </select>
         </div>
       </div>
       
       <div id="mf-messages">
-        <div class="mf-msg bot">สวัสดีครับ <b>MindBot</b> พร้อมรับฟังครับ 🤖<br>วันนี้รู้สึกอย่างไรบ้าง? เลือกความรู้สึกที่ตรงกับใจคุณได้เลยนะครับ</div>
+        <div class="mf-msg bot">สวัสดีครับ <b>${BOT_NAME}</b> พร้อมรับฟังครับ 🤖<br>วันนี้รู้สึกอย่างไรบ้าง? หรือต้องการให้ออกแบบ Workshop (เลือกโหมดด้านบนได้เลยครับ)</div>
       </div>
 
       <div id="mf-input-area">
@@ -162,15 +168,17 @@
     isPremiumMode = true;
     payModal.style.display = 'none';
     premiumBtn.style.display = 'none';
-    appendMessage('system', "🎉 ได้รับสลิปแล้ว! เปิดใช้งานโหมดเจาะลึก (Premium) แล้วครับ");
-    appendMessage('bot', "ขอบคุณครับ! เราพร้อมวิเคราะห์เชิงลึกแล้ว เล่าความรู้สึกของคุณมาได้เลยครับ 👇");
+    appendMessage('system', "🎉 ได้รับสลิปแล้ว! เปิดโหมด Premium / Workshop Design แล้วครับ");
+    appendMessage('bot', "ขอบคุณครับ! ตอนนี้คุณสามารถ:\n1. ปรึกษาเชิงลึก\n2. สั่งให้ผม **ออกแบบ Workshop** ได้เลย (เช่น พิมพ์ว่า 'ออกแบบ Workshop เรื่อง Burnout สำหรับครู')");
   }
 
   function speakText(text) {
     if (!isSoundOn) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'th-TH'; utterance.rate = 1.0; window.speechSynthesis.speak(utterance);
+    utterance.lang = CURRENT_LANG === 'en' ? 'en-US' : (CURRENT_LANG === 'cn' ? 'zh-CN' : 'th-TH'); // [NEW] ปรับเสียงตามภาษา
+    utterance.rate = 1.0; 
+    window.speechSynthesis.speak(utterance);
   }
 
   soundBtn.onclick = function() {
@@ -188,7 +196,9 @@
   let recognition = null;
   if (SpeechRecognition) {
     recognition = new SpeechRecognition();
-    recognition.lang = 'th-TH'; recognition.continuous = false; 
+    // [NEW] ปรับภาษาไมค์ตาม Config
+    recognition.lang = CURRENT_LANG === 'en' ? 'en-US' : (CURRENT_LANG === 'cn' ? 'zh-CN' : 'th-TH');
+    recognition.continuous = false; 
     recognition.onstart = function() { micBtn.style.background = "#dc3545"; input.placeholder = "กำลังฟัง..."; };
     recognition.onend = function() { micBtn.style.background = THEME_COLOR; input.placeholder = "..."; };
     recognition.onresult = function(event) { input.value = event.results[0][0].transcript; };
@@ -215,21 +225,32 @@
     const text = input.value.trim();
     const caseType = caseSelect.value;
     if (!text) return;
+    
     window.speechSynthesis.cancel();
     appendMessage('user', text);
     input.value = '';
     sendBtn.disabled = true;
     messageHistory.push({ role: "user", content: text });
+    
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'mf-msg bot';
     loadingDiv.innerText = '...';
     loadingDiv.id = 'mf-loading';
     msgContainer.appendChild(loadingDiv);
+    
     try {
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: messageHistory, caseType: caseType, isPremium: isPremiumMode }) 
+        body: JSON.stringify({ 
+            messages: messageHistory, 
+            caseType: caseType, 
+            isPremium: isPremiumMode,
+            language: CURRENT_LANG, // [NEW] ส่งภาษาไปบอก Backend
+            // [NEW] ส่งข้อมูลเสริมสำหรับ Workshop (ถ้าเลือกโหมดนี้)
+            isWorkshop: caseType === 'workshop_design',
+            targetGroup: 'general' // (สามารถปรับให้รับค่าจาก UI ได้ในอนาคต)
+        }) 
       });
       const data = await res.json();
       document.getElementById('mf-loading').remove();
