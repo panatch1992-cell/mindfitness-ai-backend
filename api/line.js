@@ -6,7 +6,7 @@ const config = {
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 const client = new Client(config);
-// ⚠️ แก้ลิงก์ QR Code ของคุณ
+// ⚠️ อย่าลืมแก้ลิงก์ QR Code ของคุณ
 const QR_CODE_URL = "https://files.catbox.moe/f44tj4.jpg"; 
 
 function createQuickReply(items) {
@@ -34,13 +34,20 @@ async function getAIResponse(userMessage, isPremium) {
   - Telegram: Scam Victim Blaming.
   `;
 
-  // --- 3. Mode Selection (รวม Workshop Design) ---
+  // --- 3. Mode Selection (UPDATED WORKSHOP LOGIC) ---
   let modePrompt = "";
-  // เช็คว่าอยากให้ออกแบบ Workshop ไหม (ต้องเป็น Premium)
+  
+  // เช็คว่าอยากให้ออกแบบ Workshop ไหม
   const workshopKeywords = /(workshop|training|course|อบรม|หลักสูตร|培训|课程)/i;
 
-  if (isPremium && workshopKeywords.test(userMessage)) {
-      modePrompt = `[MODE: EXPERT WORKSHOP DESIGNER] Design a structured training curriculum (Title, Objectives, Agenda, Outcome) based on user's topic. Professional tone.`;
+  if (workshopKeywords.test(userMessage)) {
+      if (isPremium) {
+          // 💎 PREMIUM: ออกแบบละเอียด
+          modePrompt = `[MODE: EXPERT WORKSHOP DESIGNER] Design a full, structured training curriculum (Title, Objectives, Agenda with times, Outcome). Professional tone.`;
+      } else {
+          // 🟢 FREE: ให้หลักการกว้างๆ
+          modePrompt = `[MODE: MENTAL HEALTH CONSULTANT] Provide "Key Principles" and "Conceptual Framework" only. Do NOT give specific agenda. Upsell Premium for full design.`;
+      }
   } else if (isPremium) {
       modePrompt = `[MODE: PREMIUM THERAPIST] Deep Analysis using DSM-5 & Critical Reflection. Deconstruct Stigma. (5-8 sentences).`;
   } else {
@@ -90,27 +97,28 @@ export default async function handler(req, res) {
         if (event.type === "message" && event.message.type === "text") {
           const txt = event.message.text;
           
-          // Trigger จ่ายเงิน
-          if (["สมัคร", "premium", "จ่ายเงิน", "buy", "pay"].includes(txt.toLowerCase())) {
+          // Trigger จ่ายเงิน (รองรับ 3 ภาษา)
+          const payKeywords = ["สมัคร", "premium", "จ่ายเงิน", "buy", "pay", "购买", "充值"];
+          if (payKeywords.some(k => txt.toLowerCase().includes(k))) {
               return client.replyMessage(event.replyToken, [
-                  { type: "text", text: "💎 Premium Access / Design Workshop (299.-)\n(Scan & Send Slip / ส่งสลิปเพื่อปลดล็อก)" },
+                  { type: "text", text: "💎 Unlock Premium / Workshop Design (299.-)\n(Scan & Send Slip / สแกนแล้วส่งสลิป / 扫描并发送凭证)" },
                   { type: "image", originalContentUrl: QR_CODE_URL, previewImageUrl: QR_CODE_URL }
               ]);
           }
 
-          // Check Premium (Mockup keywords)
-          let isPremium = txt.includes("โอนแล้ว") || txt.includes("เจาะลึก") || txt.includes("ออกแบบ") || txt.includes("paid");
+          // Check Premium Status (Mockup keywords)
+          let isPremium = txt.includes("โอนแล้ว") || txt.includes("paid") || txt.includes("已付") || txt.includes("เจาะลึก") || txt.includes("ออกแบบ");
           
           const aiReply = await getAIResponse(txt, isPremium);
           
           let replyObj = { type: "text", text: aiReply };
           
-          // Quick Reply (Free Mode Only)
+          // Quick Reply (แสดงเฉพาะ Free Mode)
           if (!isPremium) {
               replyObj.quickReply = createQuickReply([
-                  { label: "🌧️ เศร้า/Sad", text: "รู้สึกเศร้า" },
-                  { label: "⚡ กังวล/Anxious", text: "รู้สึกกังวล" },
-                  { label: "💎 Premium", text: "สมัคร Premium" }
+                  { label: "🌧️ Sad/เศร้า", text: "รู้สึกเศร้า" },
+                  { label: "⚡ Anxious/กังวล", text: "รู้สึกกังวล" },
+                  { label: "💎 Premium", text: "Premium" }
               ]);
           }
           return client.replyMessage(event.replyToken, replyObj);
