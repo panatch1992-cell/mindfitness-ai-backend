@@ -88,7 +88,9 @@
                 <a id="mf-doc-link" href="${PSYCHIATRIST_LINK}" target="_blank">🏥 พบจิตแพทย์ (คลิก)</a>
             </div>
             <div id="mf-header-actions">
-                <a id="mf-contact-btn" href="${SOCIAL_LINK}" target="_blank" title="แอด LINE">👤</a>
+               <a id="mf-contact-btn" href="${SOCIAL_LINK}" target="_blank" title="แอด LINE">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.png" class="line-icon" alt="LINE OA">
+</a>
                 <button id="mf-sound-btn" title="เปิด/ปิดเสียง">🔇</button>
                 <span id="mf-close-btn" title="ปิด">×</span>
             </div>
