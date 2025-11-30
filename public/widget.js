@@ -31,7 +31,11 @@
     #mf-doc-link { font-size: 12px; color: white; text-decoration: underline; opacity: 0.9; cursor: pointer; display: inline-block; margin-top: 2px; }
     #mf-header-actions { display: flex; gap: 10px; }
     #mf-contact-btn, #mf-sound-btn, #mf-close-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: white; opacity: 0.9; padding: 0; text-decoration: none; display: flex; align-items: center; }
-
+    .line-icon {
+  width: 1.3em;
+  height: 1.3em;
+  vertical-align: middle;
+}
     #mf-premium-btn { background: linear-gradient(45deg, #FFD700, #FFA500); color: #333; border: none; padding: 6px 12px; border-radius: 15px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 5px; width: fit-content; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 5px; animation: pulse-gold 2s infinite; }
     @keyframes pulse-gold { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
