@@ -1,6 +1,6 @@
 // api/toolkit.js
 // Vercel / Next Edge function style (JS)
-import fetch from "node-fetch";
+// Note: Edge runtime has built-in fetch, no import needed
 
 export const config = { runtime: "edge" };
 

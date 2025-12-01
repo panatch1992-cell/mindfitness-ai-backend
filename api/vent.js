@@ -1,8 +1,7 @@
 // api/vent.js
 // Accept vent text, run a quick AI risk-check, return analysis.
 // Persistence to DB is not implemented here (next step) — this returns analysis JSON.
-
-import fetch from "node-fetch";
+// Note: Edge runtime has built-in fetch, no import needed
 
 export const config = { runtime: "edge" };
 
