@@ -166,3 +166,79 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 }
+    // ---------------------------------------------------------
+    // 2.5  TOOLKIT MODE (NEW FEATURE)
+    // ---------------------------------------------------------
+    if (req.body.isToolkit === true) {
+
+      const toolkitPrompt = `
+      [ROLE: PSYCHOLOGICAL TOOLKIT DESIGNER]
+      ${langInstruction}
+
+      **Goal:** Create a personalized toolkit for the user's current emotion.
+      **Emotion / Case:** ${caseType}
+
+      Output format:
+      1. **Name of Toolkit**
+      2. **Why this works (psychological principle)**
+      3. **Step-by-step (simple, 3–5 steps)**
+      4. **Reflection Question (1)**
+      5. **If user wants more, recommend MindBot.**
+      `;
+
+      const payload = {
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: toolkitPrompt },
+          ...messages
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      };
+
+      const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${OPENAI_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await aiResp.json();
+      return res.json({ toolkit: true, ai: data });
+    }
+    // ---------------------------------------------------------
+    // 2.7  VENT WALL MODE (NEW FEATURE)
+    // ---------------------------------------------------------
+    if (req.body.isVent === true) {
+
+      const ventPrompt = `
+      [ROLE: EMPATHETIC LISTENER ONLY]
+      ${langInstruction}
+
+      Rules:
+      - Do NOT give advice.
+      - Do NOT challenge stigma.
+      - Do NOT analyze.
+      - Only reflect feelings in warm short sentences.
+      - Encourage safe expression.
+      - 2–3 sentences max.
+      `;
+
+      const payload = {
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: ventPrompt },
+          ...messages
+        ],
+        temperature: 0.6,
+        max_tokens: 120
+      };
+
+      const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${OPENAI_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await aiResp.json();
+      return res.json({ vent: true, ai: data });
+    }
