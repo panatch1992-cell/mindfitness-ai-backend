@@ -11,8 +11,21 @@ export default async function handler(req, res) {
 
   try {
     const OPENAI_KEY = process.env.OPENAI_API_KEY;
-    // รับค่า input เดิมครบถ้วน
-    const { messages, caseType = 'general', isPremium = false, isWorkshop = false, isToolkit = false, isVent = false, targetGroup = 'general', language = 'th' } = req.body;
+    
+    // รับค่า input - รองรับทั้ง message (string) และ messages (array)
+    const { message, messages: rawMessages, caseType = 'general', isPremium = false, isWorkshop = false, isToolkit = false, isVent = false, targetGroup = 'general', language = 'th', lang = 'th', userId, mode } = req.body;
+    
+    // แปลง message เป็น messages array ถ้าจำเป็น
+    let messages = rawMessages;
+    if (!messages || !Array.isArray(messages)) {
+      // ถ้าส่งมาเป็น message string
+      const userMessage = message || "";
+      messages = [{ role: "user", content: userMessage }];
+    }
+    
+    // ใช้ lang หรือ language
+    const finalLang = lang || language || 'th';
+    
     const lastMessage = messages[messages.length - 1]?.content || "";
 
     // Crisis Check (เหมือนเดิม)
@@ -30,8 +43,8 @@ export default async function handler(req, res) {
 
     // --- 1. LANGUAGE CONFIG (เหมือนเดิม) ---
     let langInstruction = "";
-    if (language === 'en') langInstruction = "LANGUAGE: English only. Tone: Professional yet empathetic.";
-    else if (language === 'cn') langInstruction = "LANGUAGE: Chinese (Simplified). Tone: Warm, respectful, professional.";
+    if (finalLang === 'en') langInstruction = "LANGUAGE: English only. Tone: Professional yet empathetic.";
+    else if (finalLang === 'cn') langInstruction = "LANGUAGE: Chinese (Simplified). Tone: Warm, respectful, professional.";
     else langInstruction = "LANGUAGE: Thai. Tone: Warm, natural (ใช้ 'เรา/MindBot' แทน 'ผม').";
 
     // ---------------------------------------------------------
@@ -89,7 +102,8 @@ export default async function handler(req, res) {
         });
 
         const aiData = await aiResp.json();
-        return res.json({ crisis: false, ai: aiData });
+        const replyText = aiData.choices?.[0]?.message?.content || "ไม่สามารถสร้าง Workshop ได้";
+        return res.json({ crisis: false, reply: replyText, ai: aiData });
     }
 
     // ---------------------------------------------------------
@@ -128,7 +142,8 @@ export default async function handler(req, res) {
       });
 
       const data = await aiResp.json();
-      return res.json({ toolkit: true, ai: data });
+      const replyText = data.choices?.[0]?.message?.content || "ไม่สามารถสร้าง Toolkit ได้";
+      return res.json({ toolkit: true, reply: replyText, ai: data });
     }
 
     // ---------------------------------------------------------
@@ -165,7 +180,8 @@ export default async function handler(req, res) {
       });
 
       const data = await aiResp.json();
-      return res.json({ vent: true, ai: data });
+      const replyText = data.choices?.[0]?.message?.content || "รับฟังอยู่นะคะ";
+      return res.json({ vent: true, reply: replyText, ai: data });
     }
 
     // ---------------------------------------------------------
@@ -241,7 +257,11 @@ export default async function handler(req, res) {
     });
 
     const aiData = await aiResp.json();
-    return res.json({ crisis: false, ai: aiData });
+    
+    // ดึง reply text จาก OpenAI response
+    const replyText = aiData.choices?.[0]?.message?.content || "ขออภัยค่ะ ไม่สามารถประมวลผลได้ในขณะนี้";
+    
+    return res.json({ crisis: false, reply: replyText, ai: aiData });
 
   } catch (err) {
     console.error("Handler Error:", err);
