@@ -6,7 +6,7 @@
 
 import { setCORSHeaders, getAnthropicKey } from '../utils/config.js';
 import { callClaude, sanitizeInput, parseJSONResponse } from '../utils/claude.js';
-import { normalizeLanguage, getLanguageInstruction } from '../utils/language.js';
+import { normalizeLanguage, getLanguageInstruction, detectLanguage, getAutoTranslationInstruction } from '../utils/language.js';
 import { validateToolkitRequest } from '../utils/validation.js';
 
 /**
@@ -57,18 +57,23 @@ export default async function handler(req, res) {
     }
 
     const { mood, userWork, lang } = validation.data;
-    const finalLang = normalizeLanguage(lang);
-    const langInstruction = getLanguageInstruction(finalLang);
 
     // Sanitize inputs
     const sanitizedMood = sanitizeInput(mood);
     const sanitizedUserWork = sanitizeInput(userWork);
 
-    const prompt = `
-You are an evidence-based clinical assistant. Create 3 short, practical, personalized "toolkit" interventions
-for the user based on the following inputs. Keep each toolkit concrete, easy to do, and tied to a short psychological rationale.
+    // Auto-detect language from user input
+    const detectedLang = detectLanguage(sanitizedMood + ' ' + sanitizedUserWork);
+    const finalLang = detectedLang || normalizeLanguage(lang);
+    const langInstruction = getLanguageInstruction(finalLang);
+    const autoTranslation = getAutoTranslationInstruction(finalLang);
 
+    const prompt = `
+${autoTranslation}
 ${langInstruction}
+
+Create 3 short, practical, personalized "toolkit" interventions for the user.
+Keep each toolkit concrete, easy to do, and tied to a short psychological rationale.
 
 - User mood/label: ${sanitizedMood}
 - User description / work-sample: ${sanitizedUserWork}
@@ -80,11 +85,11 @@ Output JSON:
     ...
   ]
 }
-Make output strictly JSON (no extra commentary).
+Make output strictly JSON (no extra commentary). All text in the JSON must be in the detected language.
 `;
 
     const result = await callClaude({
-      systemPrompt: 'You are an evidence-based clinical assistant. Create practical, personalized toolkit interventions. Output strictly JSON with no extra commentary.',
+      systemPrompt: `You are an evidence-based clinical assistant. ${autoTranslation} Create practical, personalized toolkit interventions. Output strictly JSON with no extra commentary.`,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.85,
       maxTokens: 800,

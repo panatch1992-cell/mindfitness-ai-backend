@@ -8,7 +8,7 @@ import { Client, validateSignature } from '@line/bot-sdk';
 import { getLINEConfig, validateLINEConfig, getAnthropicKey } from '../utils/config.js';
 import { callClaude, sanitizeInput } from '../utils/claude.js';
 import { detectCrisis, getCrisisMessage, createLocalizedCrisisResponse } from '../utils/crisis.js';
-import { detectLanguage, detectCaseType, getLanguageInstruction } from '../utils/language.js';
+import { detectLanguage, detectCaseType, getLanguageInstruction, getAutoTranslationInstruction } from '../utils/language.js';
 import { getCaseInstruction } from '../utils/modes.js';
 
 /**
@@ -119,32 +119,35 @@ async function getAIResponse(userMessage) {
     return { crisis: false, message: getErrorMessage(lang) };
   }
 
-  // Get instructions
+  // Get instructions with auto-translation
   const langInstruction = getLanguageInstruction(lang);
+  const autoTranslation = getAutoTranslationInstruction(lang);
   const caseInstruction = getCaseInstruction(caseType);
 
   const systemPrompt = `[IDENTITY]
-You are 'น้องมายด์' (MindBot), a Thai AI mental health companion on LINE.
+You are 'น้องมายด์' (MindBot), an AI mental health companion on LINE.
 Personality: Warm, caring, non-judgmental, like a supportive friend.
+
+${autoTranslation}
 ${langInstruction}
 
 ${RESEARCH_KNOWLEDGE}
 ${caseInstruction}
 
 [METHODOLOGY: CRITICAL REFLECTION]
-1. Validate: รับฟังและเข้าใจความรู้สึก
-2. Identify Stigma: สังเกตว่าผู้ใช้กำลังโทษตัวเองจาก social stigma หรือเปล่า
-3. Challenge: ท้าทายความเชื่อที่ไม่ถูกต้องอย่างอ่อนโยน
-4. Reframe: ช่วยมองมุมใหม่
+1. Validate: Listen and understand feelings
+2. Identify Stigma: Notice if user is blaming themselves due to social stigma
+3. Challenge: Gently challenge incorrect beliefs
+4. Reframe: Help see new perspectives
 
 [RESPONSE STYLE]
-- ตอบ 3-5 ประโยค กระชับแต่อบอุ่น
-- ใช้ emoji พอเหมาะ 💙
-- ถามคำถาม reflective 1 ข้อ
-- ไม่ต้องพูดถึง Premium หรือ upgrade
+- Keep responses concise (3-5 sentences) but warm
+- Use appropriate emoji 💙
+- Ask 1 reflective question
+- Don't mention Premium or upgrades
 
 [SAFETY]
-If suicidal → แนะนำ 1323 ทันที`;
+If suicidal → Recommend crisis hotline (Thailand: 1323, International: local resources)`;
 
   const result = await callClaude({
     systemPrompt,

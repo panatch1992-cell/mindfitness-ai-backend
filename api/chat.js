@@ -7,7 +7,7 @@
 import { setCORSHeaders, getAnthropicKey } from '../utils/config.js';
 import { callClaude, sanitizeInput } from '../utils/claude.js';
 import { detectCrisis, createCrisisResponse } from '../utils/crisis.js';
-import { getLanguageInstruction, normalizeLanguage } from '../utils/language.js';
+import { getLanguageInstruction, normalizeLanguage, detectLanguage, getAutoTranslationInstruction } from '../utils/language.js';
 import { getCaseInstruction, getModeInstruction, getMaxTokens } from '../utils/modes.js';
 import { validateMessages } from '../utils/validation.js';
 
@@ -81,9 +81,6 @@ export default async function handler(req, res) {
       lang = 'th',
     } = req.body;
 
-    // Normalize language
-    const finalLang = normalizeLanguage(lang || language);
-
     // Build messages array
     let messages = rawMessages;
     if (!messages || !Array.isArray(messages)) {
@@ -103,16 +100,22 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: validation.error });
     }
 
-    // Get last message for crisis check
+    // Get last message for crisis check and language detection
     const lastMessage = messages[messages.length - 1]?.content || '';
+
+    // Auto-detect language from user message (priority: detected > specified > default)
+    const detectedLang = detectLanguage(lastMessage);
+    const specifiedLang = normalizeLanguage(lang || language);
+    const finalLang = detectedLang || specifiedLang;
 
     // Crisis Detection
     if (detectCrisis(lastMessage)) {
       return res.json(createCrisisResponse());
     }
 
-    // Get language instruction
+    // Get language instructions with auto-translation
     const langInstruction = getLanguageInstruction(finalLang);
+    const autoTranslation = getAutoTranslationInstruction(finalLang);
 
     // ---------------------------------------------------------
     // WORKSHOP DESIGN MODE
@@ -120,6 +123,7 @@ export default async function handler(req, res) {
     if (isWorkshop) {
       const workshopResult = await handleWorkshopMode({
         langInstruction,
+        autoTranslation,
         targetGroup,
         caseType,
         isPremium,
@@ -134,6 +138,7 @@ export default async function handler(req, res) {
     if (isToolkit) {
       const toolkitResult = await handleToolkitMode({
         langInstruction,
+        autoTranslation,
         caseType,
         messages,
         finalLang,
@@ -147,6 +152,7 @@ export default async function handler(req, res) {
     if (isVent) {
       const ventResult = await handleVentMode({
         langInstruction,
+        autoTranslation,
         messages,
         finalLang,
       });
@@ -162,8 +168,10 @@ export default async function handler(req, res) {
 
     const systemPrompt = `
       [IDENTITY]
-      You are 'MindBot' (or 'น้องมายด์'), a Thai Peer Supporter.
-      **PRONOUNS:** "เรา", "MindBot", "หมอ". (No "ผม/ดิฉัน").
+      You are 'MindBot' (or 'น้องมายด์'), a Peer Supporter.
+      **PRONOUNS:** Use appropriate pronouns for the detected language.
+
+      ${autoTranslation}
       ${langInstruction}
 
       ${RESEARCH_KNOWLEDGE}
@@ -175,7 +183,7 @@ export default async function handler(req, res) {
       2. **Reflect:** Challenge it.
       3. **Outcome:** Self-Compassion.
 
-      [SAFETY] If suicidal, reply ONLY with contact 1323.`;
+      [SAFETY] If suicidal, reply with crisis hotline (Thailand: 1323, International: local resources).`;
 
     const result = await callClaude({
       systemPrompt,
@@ -208,14 +216,16 @@ export default async function handler(req, res) {
 /**
  * Handles workshop design mode
  */
-async function handleWorkshopMode({ langInstruction, targetGroup, caseType, isPremium, finalLang }) {
+async function handleWorkshopMode({ langInstruction, autoTranslation, targetGroup, caseType, isPremium, finalLang }) {
   let workshopPrompt = '';
   let maxTokens = 800;
 
   if (isPremium) {
     workshopPrompt = `
     [ROLE: EXPERT LEARNING DESIGNER]
+    ${autoTranslation}
     ${langInstruction}
+
     **Task:** Design a fully customized, ready-to-use Workshop Agenda.
     **Target Audience:** ${sanitizeInput(targetGroup)}
     **Topic:** ${caseType}
@@ -232,7 +242,9 @@ async function handleWorkshopMode({ langInstruction, targetGroup, caseType, isPr
   } else {
     workshopPrompt = `
     [ROLE: MENTAL HEALTH CONSULTANT]
+    ${autoTranslation}
     ${langInstruction}
+
     **Task:** Provide "Key Principles" and "Conceptual Framework" for a workshop on ${caseType}.
     **Constraint:** DO NOT provide a specific time agenda or step-by-step activities. Keep it high-level.
 
@@ -269,9 +281,10 @@ async function handleWorkshopMode({ langInstruction, targetGroup, caseType, isPr
 /**
  * Handles toolkit mode
  */
-async function handleToolkitMode({ langInstruction, caseType, messages, finalLang }) {
+async function handleToolkitMode({ langInstruction, autoTranslation, caseType, messages, finalLang }) {
   const toolkitPrompt = `
   [ROLE: PSYCHOLOGICAL TOOLKIT DESIGNER]
+  ${autoTranslation}
   ${langInstruction}
 
   **Goal:** Create a personalized toolkit for the user's current emotion.
@@ -310,9 +323,10 @@ async function handleToolkitMode({ langInstruction, caseType, messages, finalLan
 /**
  * Handles vent wall mode
  */
-async function handleVentMode({ langInstruction, messages, finalLang }) {
+async function handleVentMode({ langInstruction, autoTranslation, messages, finalLang }) {
   const ventPrompt = `
   [ROLE: EMPATHETIC LISTENER ONLY]
+  ${autoTranslation}
   ${langInstruction}
 
   Rules:

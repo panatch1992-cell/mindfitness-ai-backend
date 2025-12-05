@@ -89,17 +89,17 @@ describe('Toolkit Handler Logic', () => {
   describe('Language Support', () => {
     it('should get Thai language instruction', () => {
       const instruction = getLanguageInstruction('th');
-      expect(instruction).toContain('Thai');
+      expect(instruction).toContain('THAI');
     });
 
     it('should get English language instruction', () => {
       const instruction = getLanguageInstruction('en');
-      expect(instruction).toContain('English');
+      expect(instruction).toContain('ENGLISH');
     });
 
     it('should get Chinese language instruction', () => {
       const instruction = getLanguageInstruction('cn');
-      expect(instruction).toContain('Chinese');
+      expect(instruction).toContain('CHINESE');
     });
   });
 
