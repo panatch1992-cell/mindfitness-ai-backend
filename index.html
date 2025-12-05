@@ -1,8 +1,173 @@
-<!doctype html>
-<html>
-<head><meta charset='utf-8'><title>AI Therapist Backend</title></head>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MindFitness AI Backend</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+    }
+    .header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+    .header p { opacity: 0.9; font-size: 1.1rem; }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+    .card h2 {
+      color: #667eea;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .api-list { list-style: none; }
+    .api-list li {
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .api-list code {
+      background: #667eea;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    .comic-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .comic-item {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      transition: transform 0.2s;
+    }
+    .comic-item:hover { transform: translateY(-4px); }
+    .comic-item h4 { color: #333; margin-bottom: 8px; }
+    .comic-item p { font-size: 0.85rem; color: #666; }
+    .comic-item a {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 8px 16px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 20px;
+      font-size: 0.85rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #10b981;
+      color: white;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      margin-left: 8px;
+    }
+  </style>
+</head>
 <body>
-  <h2>AI Therapist Backend (Pro)</h2>
-  <p>This project provides <code>/api/chat</code>. Set <code>OPENAI_API_KEY</code> in environment variables.</p>
+  <div class="container">
+    <div class="header">
+      <h1>MindFitness AI</h1>
+      <p>Mental Health Support Backend powered by Claude AI</p>
+    </div>
+
+    <div class="card">
+      <h2>API Endpoints</h2>
+      <ul class="api-list">
+        <li>
+          <span>Chat - AI Mental Health Support</span>
+          <code>POST /api/chat</code>
+        </li>
+        <li>
+          <span>LINE Bot Webhook</span>
+          <code>POST /api/line</code>
+        </li>
+        <li>
+          <span>Psychological Toolkit</span>
+          <code>POST /api/toolkit</code>
+        </li>
+        <li>
+          <span>Vent Wall</span>
+          <code>POST /api/vent</code>
+        </li>
+        <li>
+          <span>Psychoeducation <span class="badge">NEW</span></span>
+          <code>GET /api/psychoeducation</code>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Psychoeducation Comics</h2>
+      <div class="comic-grid">
+        <div class="comic-item">
+          <h4>Vol.1</h4>
+          <p>ทำไมฟ้าไม่เหมือนเดิม?</p>
+          <a href="/public/comics/MindFitness-Comic-Vol1-v26.html">Read</a>
+        </div>
+        <div class="comic-item">
+          <h4>Vol.2</h4>
+          <p>สัญญาณที่ควรสังเกต</p>
+          <a href="/public/comics/MindFitness-Comic-Vol2-v2.html">Read</a>
+        </div>
+        <div class="comic-item">
+          <h4>Vol.3</h4>
+          <p>การรับมือและการช่วยเหลือ</p>
+          <a href="/public/comics/MindFitness-Comic-Vol3.html">Read</a>
+        </div>
+        <div class="comic-item">
+          <h4>Vol.4</h4>
+          <p>การพูดคุยอย่างเข้าใจ</p>
+          <a href="/public/comics/MindFitness-Comic-Vol4.html">Read</a>
+        </div>
+        <div class="comic-item">
+          <h4>Vol.5</h4>
+          <p>การดูแลตัวเอง</p>
+          <a href="/public/comics/MindFitness-Comic-Vol5.html">Read</a>
+        </div>
+        <div class="comic-item">
+          <h4>Vol.6</h4>
+          <p>ก้าวต่อไปด้วยกัน</p>
+          <a href="/public/comics/MindFitness-Comic-Vol6-FINALE.html">Read</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Features</h2>
+      <ul class="api-list">
+        <li>Auto Language Detection (Thai/English)</li>
+        <li>Claude AI (Anthropic) Integration</li>
+        <li>Crisis Detection & Safety</li>
+        <li>Psychoeducation Content with Translation</li>
+      </ul>
+    </div>
+  </div>
 </body>
 </html>
