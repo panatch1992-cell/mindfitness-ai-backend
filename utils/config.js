@@ -8,6 +8,8 @@
 export const ALLOWED_ORIGINS = [
   'https://mindfitness.co',
   'https://www.mindfitness.co',
+  'https://mindfitness.com',
+  'https://www.mindfitness.com',
   'https://mindfitness-ai-backend-4lfy.vercel.app',
   // Add localhost for development
   process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : null,

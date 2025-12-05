@@ -32,6 +32,8 @@ describe('Config Module', () => {
 
     it('should include main domain', () => {
       expect(ALLOWED_ORIGINS).toContain('https://mindfitness.co');
+      expect(ALLOWED_ORIGINS).toContain('https://mindfitness.com');
+      expect(ALLOWED_ORIGINS).toContain('https://www.mindfitness.com');
     });
   });
 
