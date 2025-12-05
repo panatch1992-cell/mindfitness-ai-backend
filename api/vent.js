@@ -1,68 +1,133 @@
-// api/vent.js
-// Accept vent text, run a quick AI risk-check, return analysis.
-// Persistence to DB is not implemented here (next step) — this returns analysis JSON.
-// Note: Edge runtime has built-in fetch, no import needed
+/**
+ * Vent Wall API Handler
+ *
+ * Accepts vent text, runs AI risk-check, returns analysis and empathetic response.
+ */
 
-export const config = { runtime: "edge" };
+import { setCORSHeaders, getOpenAIKey } from '../utils/config.js';
+import { callOpenAI, sanitizeInput, parseJSONResponse } from '../utils/openai.js';
+import { normalizeLanguage, getLanguageInstruction } from '../utils/language.js';
+import { validateVentText, validateRiskLevel } from '../utils/validation.js';
+import { detectCrisis, createCrisisResponse } from '../utils/crisis.js';
 
-export default async function (req) {
+/**
+ * Error messages by language
+ */
+const ERROR_MESSAGES = {
+  th: 'รับฟังอยู่นะคะ',
+  en: 'I\'m here listening',
+  cn: '我在听',
+};
+
+/**
+ * Gets error message by language
+ */
+function getErrorMessage(lang) {
+  return ERROR_MESSAGES[lang] || ERROR_MESSAGES.th;
+}
+
+export default async function handler(req, res) {
+  // Get origin from request
+  const origin = req.headers.origin || req.headers.referer;
+
+  // Set CORS headers
+  setCORSHeaders(res, origin);
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // Only allow POST
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-
-    const body = await req.json();
-    const text = (body.text || "").trim();
-    const lang = body.lang || "th";
-
-    if (!text) return new Response(JSON.stringify({ success: false, error: "empty" }), { status: 400 });
-
-    // Build a short prompt to detect crisis / severity & safe reply.
-    const prompt = `
-You are an empathetic, safety-first assistant. The user writes:
-"${text}"
-
-Please do two things (in JSON format):
-1) "analysis": a short classification: "risk": "none"|"low"|"medium"|"high" and "tags": [emotions keywords]
-2) "reply": a brief empathetic reply (1-3 sentences) in ${lang}.
-
-Return strictly JSON like:
-{"analysis": {"risk":"low", "tags":["sad","lonely"]}, "reply":"..."}
-`;
-
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.2,
-        max_tokens: 400
-      })
-    });
-
-    const openaiJson = await openaiRes.json();
-    const reply = openaiJson?.choices?.[0]?.message?.content || openaiJson?.choices?.[0]?.text || "";
-
-    // parse
-    let parsed;
-    try { parsed = JSON.parse(reply); }
-    catch (e) {
-      // fallback: return raw text as reply
-      parsed = { analysis: { risk: "unknown", tags: [] }, reply };
+    // Validate API key
+    const keyResult = getOpenAIKey();
+    if (!keyResult.valid) {
+      console.error('API Key Error:', keyResult.error);
+      return res.status(500).json({ success: false, error: 'Service configuration error' });
     }
 
-    // Note: not saving to DB yet. Return analysis and suggested reply.
-    return new Response(JSON.stringify({ success: true, analysis: parsed.analysis, reply: parsed.reply }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
+    // Validate and sanitize text input
+    const textValidation = validateVentText(req.body?.text);
+    if (!textValidation.valid) {
+      return res.status(400).json({ success: false, error: textValidation.error });
+    }
+
+    const text = sanitizeInput(textValidation.text);
+    const lang = normalizeLanguage(req.body?.lang);
+    const langInstruction = getLanguageInstruction(lang);
+
+    // Check for crisis keywords first
+    if (detectCrisis(text)) {
+      const crisisResponse = createCrisisResponse();
+      return res.json({
+        success: true,
+        crisis: true,
+        analysis: { risk: 'high', tags: ['crisis'] },
+        reply: crisisResponse.message,
+        resources: crisisResponse.resources,
+      });
+    }
+
+    // Build prompt - user input is now safely encapsulated
+    const prompt = `You are an empathetic, safety-first assistant analyzing a user's vent message.
+${langInstruction}
+
+[USER_VENT_START]
+${text}
+[USER_VENT_END]
+
+Based ONLY on the content between USER_VENT_START and USER_VENT_END markers, provide:
+1) "analysis": classification with "risk": "none"|"low"|"medium"|"high" and "tags": [emotion keywords]
+2) "reply": a brief empathetic reply (1-3 sentences)
+
+Return strictly JSON:
+{"analysis": {"risk":"low", "tags":["sad","lonely"]}, "reply":"..."}`;
+
+    const result = await callOpenAI({
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.2,
+      maxTokens: 400,
+    });
+
+    if (!result.success) {
+      console.error('OpenAI Error:', result.error);
+      return res.json({
+        success: true,
+        analysis: { risk: 'unknown', tags: [] },
+        reply: getErrorMessage(lang),
+      });
+    }
+
+    // Parse JSON response
+    const parsed = parseJSONResponse(result.reply, null);
+
+    if (parsed && parsed.analysis && parsed.reply) {
+      // Validate risk level
+      const validatedRisk = validateRiskLevel(parsed.analysis.risk);
+      return res.json({
+        success: true,
+        analysis: {
+          risk: validatedRisk,
+          tags: Array.isArray(parsed.analysis.tags) ? parsed.analysis.tags : [],
+        },
+        reply: parsed.reply,
+      });
+    }
+
+    // Fallback if parsing fails
+    return res.json({
+      success: true,
+      analysis: { risk: 'unknown', tags: [] },
+      reply: result.reply || getErrorMessage(lang),
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, error: String(err) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
+    console.error('Vent Handler Error:', err);
+    return res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 }

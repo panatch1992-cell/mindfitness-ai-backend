@@ -10,6 +10,8 @@ import {
   getLanguageInstruction,
   isValidLanguage,
   normalizeLanguage,
+  detectLanguage,
+  detectCaseType,
 } from '../utils/language.js';
 
 describe('Language Configuration Module', () => {
@@ -132,6 +134,86 @@ describe('Language Configuration Module', () => {
 
     it('should return default language for empty string', () => {
       expect(normalizeLanguage('')).toBe(DEFAULT_LANGUAGE);
+    });
+  });
+
+  describe('detectLanguage()', () => {
+    it('should detect Thai from Thai characters', () => {
+      expect(detectLanguage('สวัสดีครับ')).toBe('th');
+      expect(detectLanguage('รู้สึกเครียด')).toBe('th');
+    });
+
+    it('should detect Chinese from Chinese characters', () => {
+      expect(detectLanguage('你好')).toBe('cn');
+      expect(detectLanguage('我感到难过')).toBe('cn');
+    });
+
+    it('should detect English from Latin characters', () => {
+      expect(detectLanguage('Hello')).toBe('en');
+      expect(detectLanguage('I feel sad')).toBe('en');
+    });
+
+    it('should prioritize Chinese over Thai', () => {
+      expect(detectLanguage('你好 สวัสดี')).toBe('cn');
+    });
+
+    it('should return default for null', () => {
+      expect(detectLanguage(null)).toBe(DEFAULT_LANGUAGE);
+    });
+
+    it('should return default for undefined', () => {
+      expect(detectLanguage(undefined)).toBe(DEFAULT_LANGUAGE);
+    });
+
+    it('should return default for non-string', () => {
+      expect(detectLanguage(123)).toBe(DEFAULT_LANGUAGE);
+    });
+  });
+
+  describe('detectCaseType()', () => {
+    it('should detect stress in Thai', () => {
+      expect(detectCaseType('รู้สึกเครียดมาก')).toBe('stress');
+    });
+
+    it('should detect stress in English', () => {
+      expect(detectCaseType('I am so stressed')).toBe('stress');
+    });
+
+    it('should detect sadness', () => {
+      expect(detectCaseType('รู้สึกเศร้า')).toBe('sadness');
+      expect(detectCaseType('I feel sad')).toBe('sadness');
+    });
+
+    it('should detect anxiety', () => {
+      expect(detectCaseType('กังวลมาก')).toBe('anxiety');
+      expect(detectCaseType('I feel anxious')).toBe('anxiety');
+    });
+
+    it('should detect anger', () => {
+      expect(detectCaseType('โกรธมาก')).toBe('anger');
+      expect(detectCaseType('I am angry')).toBe('anger');
+    });
+
+    it('should detect loneliness', () => {
+      expect(detectCaseType('รู้สึกเหงา')).toBe('loneliness');
+      expect(detectCaseType('I feel lonely')).toBe('loneliness');
+    });
+
+    it('should detect burnout', () => {
+      expect(detectCaseType('หมดไฟ')).toBe('burnout');
+      expect(detectCaseType('I have burnout')).toBe('burnout');
+    });
+
+    it('should return general for unrecognized', () => {
+      expect(detectCaseType('Hello world')).toBe('general');
+    });
+
+    it('should return general for null', () => {
+      expect(detectCaseType(null)).toBe('general');
+    });
+
+    it('should return general for non-string', () => {
+      expect(detectCaseType(123)).toBe('general');
     });
   });
 });
