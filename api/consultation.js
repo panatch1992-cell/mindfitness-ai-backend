@@ -10,7 +10,7 @@ import QRCode from 'qrcode';
 
 // PromptPay account configuration
 const PROMPTPAY_CONFIG = {
-  accountId: process.env.PROMPTPAY_ID || '0812345678',
+  accountId: process.env.PROMPTPAY_ID || '1560100280840',
   accountName: 'นายพณัฐ เชื้อประเสริฐศักดิ์'
 };
 

@@ -13,7 +13,7 @@ import QRCode from 'qrcode';
 const PROMPTPAY_CONFIG = {
   // Use phone number or national ID for PromptPay
   // Format: 10-digit phone (0812345678) or 13-digit ID
-  accountId: process.env.PROMPTPAY_ID || '0812345678', // Configure in environment
+  accountId: process.env.PROMPTPAY_ID || '1560100280840',
   accountName: 'นายพณัฐ เชื้อประเสริฐศักดิ์'
 };
 
