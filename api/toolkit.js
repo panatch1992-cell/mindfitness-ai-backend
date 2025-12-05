@@ -4,8 +4,8 @@
  * Creates personalized psychological toolkit interventions.
  */
 
-import { setCORSHeaders, getOpenAIKey } from '../utils/config.js';
-import { callOpenAI, sanitizeInput, parseJSONResponse } from '../utils/openai.js';
+import { setCORSHeaders, getAnthropicKey } from '../utils/config.js';
+import { callClaude, sanitizeInput, parseJSONResponse } from '../utils/claude.js';
 import { normalizeLanguage, getLanguageInstruction } from '../utils/language.js';
 import { validateToolkitRequest } from '../utils/validation.js';
 
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
 
   try {
     // Validate API key
-    const keyResult = getOpenAIKey();
+    const keyResult = getAnthropicKey();
     if (!keyResult.valid) {
       console.error('API Key Error:', keyResult.error);
       return res.status(500).json({ success: false, error: 'Service configuration error' });
@@ -83,14 +83,15 @@ Output JSON:
 Make output strictly JSON (no extra commentary).
 `;
 
-    const result = await callOpenAI({
+    const result = await callClaude({
+      systemPrompt: 'You are an evidence-based clinical assistant. Create practical, personalized toolkit interventions. Output strictly JSON with no extra commentary.',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.85,
       maxTokens: 800,
     });
 
     if (!result.success) {
-      console.error('OpenAI Error:', result.error);
+      console.error('Claude Error:', result.error);
       return res.json({
         success: false,
         error: getErrorMessage(finalLang),

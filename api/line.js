@@ -5,8 +5,8 @@
  */
 
 import { Client, validateSignature } from '@line/bot-sdk';
-import { getLINEConfig, validateLINEConfig, getOpenAIKey } from '../utils/config.js';
-import { callOpenAI, sanitizeInput } from '../utils/openai.js';
+import { getLINEConfig, validateLINEConfig, getAnthropicKey } from '../utils/config.js';
+import { callClaude, sanitizeInput } from '../utils/claude.js';
 import { detectCrisis, getCrisisMessage, createLocalizedCrisisResponse } from '../utils/crisis.js';
 import { detectLanguage, detectCaseType, getLanguageInstruction } from '../utils/language.js';
 import { getCaseInstruction } from '../utils/modes.js';
@@ -113,7 +113,7 @@ async function getAIResponse(userMessage) {
   }
 
   // Validate API key
-  const keyResult = getOpenAIKey();
+  const keyResult = getAnthropicKey();
   if (!keyResult.valid) {
     console.error('API Key Error:', keyResult.error);
     return { crisis: false, message: getErrorMessage(lang) };
@@ -123,9 +123,7 @@ async function getAIResponse(userMessage) {
   const langInstruction = getLanguageInstruction(lang);
   const caseInstruction = getCaseInstruction(caseType);
 
-  const systemPrompt = {
-    role: 'system',
-    content: `[IDENTITY]
+  const systemPrompt = `[IDENTITY]
 You are 'น้องมายด์' (MindBot), a Thai AI mental health companion on LINE.
 Personality: Warm, caring, non-judgmental, like a supportive friend.
 ${langInstruction}
@@ -146,17 +144,17 @@ ${caseInstruction}
 - ไม่ต้องพูดถึง Premium หรือ upgrade
 
 [SAFETY]
-If suicidal → แนะนำ 1323 ทันที`,
-  };
+If suicidal → แนะนำ 1323 ทันที`;
 
-  const result = await callOpenAI({
-    messages: [systemPrompt, { role: 'user', content: sanitizedMessage }],
+  const result = await callClaude({
+    systemPrompt,
+    messages: [{ role: 'user', content: sanitizedMessage }],
     temperature: 0.8,
     maxTokens: 500,
   });
 
   if (!result.success) {
-    console.error('OpenAI Error:', result.error);
+    console.error('Claude Error:', result.error);
     return { crisis: false, message: getErrorMessage(lang) };
   }
 

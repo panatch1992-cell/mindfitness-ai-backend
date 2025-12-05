@@ -5,8 +5,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   ALLOWED_ORIGINS,
-  getOpenAIKey,
-  getOpenAIModel,
+  getAnthropicKey,
+  getClaudeModel,
   isAllowedOrigin,
   getCORSOrigin,
   getLINEConfig,
@@ -37,40 +37,40 @@ describe('Config Module', () => {
     });
   });
 
-  describe('getOpenAIKey()', () => {
+  describe('getAnthropicKey()', () => {
     it('should return invalid when key is missing', () => {
-      delete process.env.OPENAI_API_KEY;
-      const result = getOpenAIKey();
+      delete process.env.ANTHROPIC_API_KEY;
+      const result = getAnthropicKey();
       expect(result.valid).toBe(false);
       expect(result.error).toContain('not configured');
     });
 
     it('should return invalid for wrong format', () => {
-      process.env.OPENAI_API_KEY = 'wrong-format-key';
-      const result = getOpenAIKey();
+      process.env.ANTHROPIC_API_KEY = 'wrong-format-key';
+      const result = getAnthropicKey();
       expect(result.valid).toBe(false);
       expect(result.error).toContain('Invalid');
     });
 
     it('should return valid for correct key format', () => {
-      process.env.OPENAI_API_KEY = 'sk-test-key-12345';
-      const result = getOpenAIKey();
+      process.env.ANTHROPIC_API_KEY = 'sk-ant-test-key-12345';
+      const result = getAnthropicKey();
       expect(result.valid).toBe(true);
-      expect(result.key).toBe('sk-test-key-12345');
+      expect(result.key).toBe('sk-ant-test-key-12345');
     });
   });
 
-  describe('getOpenAIModel()', () => {
+  describe('getClaudeModel()', () => {
     it('should return default model when env not set', () => {
-      delete process.env.OPENAI_MODEL;
-      const model = getOpenAIModel();
-      expect(model).toBe('gpt-4o-mini');
+      delete process.env.CLAUDE_MODEL;
+      const model = getClaudeModel();
+      expect(model).toBe('claude-sonnet-4-20250514');
     });
 
     it('should return env model when set', () => {
-      process.env.OPENAI_MODEL = 'gpt-4';
-      const model = getOpenAIModel();
-      expect(model).toBe('gpt-4');
+      process.env.CLAUDE_MODEL = 'claude-3-haiku-20240307';
+      const model = getClaudeModel();
+      expect(model).toBe('claude-3-haiku-20240307');
     });
   });
 
