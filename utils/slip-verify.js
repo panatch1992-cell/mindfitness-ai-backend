@@ -2,10 +2,11 @@
  * Slip Verification Utility
  *
  * Uses SlipOK API (slipok.com) for automatic Thai bank slip verification
+ * Free Plan: 50 requests/month
  * Supports PromptPay, bank transfers, and mobile banking slips
  */
 
-import { query, queryOne, insert } from './database.js';
+import { query, queryOne } from './database.js';
 
 // SlipOK API Configuration
 const SLIPOK_CONFIG = {
@@ -23,15 +24,15 @@ const RECEIVER_CONFIG = {
 /**
  * Verify bank slip using SlipOK API
  *
- * @param {string} slipData - Base64 encoded slip image
+ * @param {string} slipData - Base64 encoded slip image (data:image/xxx;base64,...)
  * @param {number} expectedAmount - Expected payment amount
  * @param {string} orderId - Order ID for logging
  * @returns {Promise<{success: boolean, data?: object, error?: string}>}
  */
 export async function verifySlip(slipData, expectedAmount, orderId) {
   // Check if SlipOK is configured
-  if (!SLIPOK_CONFIG.apiKey) {
-    console.warn('SlipOK API not configured, using manual verification mode');
+  if (!SLIPOK_CONFIG.apiKey || !SLIPOK_CONFIG.branchId) {
+    console.warn('SlipOK API not configured, falling back to OTP verification');
     return {
       success: false,
       requiresManual: true,
@@ -40,63 +41,105 @@ export async function verifySlip(slipData, expectedAmount, orderId) {
   }
 
   try {
-    // Remove base64 prefix if present
-    let imageData = slipData;
-    if (slipData.includes(',')) {
-      imageData = slipData.split(',')[1];
+    // Extract base64 data and mime type
+    const matches = slipData.match(/^data:(.+);base64,(.+)$/);
+    if (!matches) {
+      return {
+        success: false,
+        error: 'Invalid image format'
+      };
     }
 
-    // Call SlipOK API
-    const formData = new FormData();
-    formData.append('files', base64ToBlob(imageData, 'image/png'));
+    const mimeType = matches[1];
+    const base64Data = matches[2];
 
-    const response = await fetch(`${SLIPOK_CONFIG.apiUrl}/${SLIPOK_CONFIG.branchId}`, {
-      method: 'POST',
-      headers: {
-        'x-authorization': SLIPOK_CONFIG.apiKey
-      },
-      body: formData
-    });
+    // Convert base64 to Buffer
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+
+    // Create form data for SlipOK API
+    // SlipOK accepts multipart/form-data with 'files' field
+    const boundary = '----FormBoundary' + Math.random().toString(36).substring(2);
+    const fileName = `slip.${mimeType.split('/')[1] || 'png'}`;
+
+    const body = Buffer.concat([
+      Buffer.from(
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="files"; filename="${fileName}"\r\n` +
+        `Content-Type: ${mimeType}\r\n\r\n`
+      ),
+      imageBuffer,
+      Buffer.from(`\r\n--${boundary}--\r\n`)
+    ]);
+
+    // Call SlipOK API
+    const response = await fetch(
+      `${SLIPOK_CONFIG.apiUrl}/${SLIPOK_CONFIG.branchId}`,
+      {
+        method: 'POST',
+        headers: {
+          'x-authorization': SLIPOK_CONFIG.apiKey,
+          'Content-Type': `multipart/form-data; boundary=${boundary}`
+        },
+        body: body
+      }
+    );
 
     const result = await response.json();
 
     // Log verification attempt
-    await logVerification(orderId, 'slipok', result, response.ok);
+    await logVerification(orderId, 'slipok', result, response.ok && result.success);
 
-    if (!response.ok || !result.success) {
+    // Check API response
+    if (!response.ok) {
+      console.error('SlipOK API error:', response.status, result);
       return {
         success: false,
-        error: result.message || 'Slip verification failed',
+        error: result.message || `API Error: ${response.status}`,
+        apiError: true
+      };
+    }
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.message || 'ไม่สามารถอ่านข้อมูลสลิปได้',
         data: result
       };
     }
 
-    // Extract and validate slip data
+    // Extract slip data
     const slipInfo = result.data;
 
     // Validate amount matches
     const slipAmount = parseFloat(slipInfo.amount);
     const amountDiff = Math.abs(slipAmount - expectedAmount);
 
-    if (amountDiff > 0.01) { // Allow 1 satang tolerance
+    if (amountDiff > 1) { // Allow 1 baht tolerance
       return {
         success: false,
-        error: `ยอดเงินไม่ตรง: สลิป ${slipAmount} บาท, คาดหวัง ${expectedAmount} บาท`,
+        error: `ยอดเงินไม่ตรง: สลิป ${slipAmount.toLocaleString()} บาท, คาดหวัง ${expectedAmount.toLocaleString()} บาท`,
         amountMismatch: true,
+        slipAmount,
+        expectedAmount,
         data: slipInfo
       };
     }
 
-    // Validate receiver (optional but recommended)
+    // Validate receiver matches our PromptPay
     const isValidReceiver = validateReceiver(slipInfo);
 
+    if (!isValidReceiver) {
+      console.warn('Receiver mismatch but amount OK, allowing payment');
+    }
+
+    // Success!
     return {
       success: true,
       amountVerified: true,
       receiverVerified: isValidReceiver,
       data: {
         transactionRef: slipInfo.transRef,
-        senderName: slipInfo.sender?.displayName || slipInfo.sender?.name,
+        senderName: slipInfo.sender?.displayName || slipInfo.sender?.name || 'ไม่ระบุ',
         senderAccount: slipInfo.sender?.account?.value,
         senderBank: slipInfo.sendingBank,
         receiverName: slipInfo.receiver?.displayName || slipInfo.receiver?.name,
@@ -116,7 +159,7 @@ export async function verifySlip(slipData, expectedAmount, orderId) {
 
     return {
       success: false,
-      error: 'เกิดข้อผิดพลาดในการตรวจสอบสลิป กรุณาลองใหม่',
+      error: 'เกิดข้อผิดพลาดในการตรวจสอบสลิป',
       technicalError: error.message
     };
   }
@@ -129,16 +172,20 @@ function validateReceiver(slipInfo) {
   if (!slipInfo.receiver) return false;
 
   const receiverAccount = slipInfo.receiver?.account?.value || '';
-  const receiverName = slipInfo.receiver?.displayName || slipInfo.receiver?.name || '';
+  const receiverName = (slipInfo.receiver?.displayName || slipInfo.receiver?.name || '').toLowerCase();
 
-  // Check if PromptPay ID matches
-  if (receiverAccount.includes(RECEIVER_CONFIG.promptpayId)) {
+  // Check if PromptPay ID matches (last 4 digits)
+  const last4Digits = RECEIVER_CONFIG.promptpayId.slice(-4);
+  if (receiverAccount.includes(last4Digits)) {
     return true;
   }
 
-  // Check if name contains expected name
-  if (receiverName.includes('พณัฐ') || receiverName.includes('เชื้อประเสริฐศักดิ์')) {
-    return true;
+  // Check if name contains expected name parts
+  const nameParts = ['พณัฐ', 'เชื้อประเสริฐ', 'panat', 'chue'];
+  for (const part of nameParts) {
+    if (receiverName.includes(part.toLowerCase())) {
+      return true;
+    }
   }
 
   return false;
@@ -160,8 +207,8 @@ async function logVerification(orderId, method, response, isSuccess) {
     await query(sql, [
       orderId,
       method,
-      JSON.stringify(response),
-      isSuccess,
+      JSON.stringify(response).substring(0, 5000), // Limit payload size
+      isSuccess ? 1 : 0,
       data.sender?.displayName || data.sender?.name || null,
       data.receiver?.displayName || data.receiver?.name || null,
       data.amount || null,
@@ -169,23 +216,37 @@ async function logVerification(orderId, method, response, isSuccess) {
       data.transDate ? new Date(`${data.transDate} ${data.transTime || '00:00:00'}`) : null
     ]);
   } catch (error) {
+    // Don't fail the verification if logging fails
     console.error('Error logging verification:', error.message);
   }
 }
 
 /**
- * Convert base64 to Blob for FormData
+ * Check daily/monthly usage for SlipOK free plan
  */
-function base64ToBlob(base64, mimeType) {
-  const byteCharacters = atob(base64);
-  const byteNumbers = new Array(byteCharacters.length);
+export async function getUsageStats() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const monthStart = today.substring(0, 7) + '-01';
 
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
+    const stats = await queryOne(`
+      SELECT
+        COUNT(CASE WHEN DATE(request_time) = ? THEN 1 END) as today_count,
+        COUNT(CASE WHEN request_time >= ? THEN 1 END) as month_count
+      FROM slip_verifications
+      WHERE verification_method = 'slipok'
+    `, [today, monthStart]);
+
+    return {
+      today: stats?.today_count || 0,
+      month: stats?.month_count || 0,
+      freeLimit: 50,
+      remaining: Math.max(0, 50 - (stats?.month_count || 0))
+    };
+  } catch (error) {
+    console.error('Error getting usage stats:', error);
+    return { today: 0, month: 0, freeLimit: 50, remaining: 50 };
   }
-
-  const byteArray = new Uint8Array(byteNumbers);
-  return new Blob([byteArray], { type: mimeType });
 }
 
 /**
@@ -193,7 +254,6 @@ function base64ToBlob(base64, mimeType) {
  */
 export async function manualVerify(orderId, adminId, notes = '') {
   try {
-    // Update order status
     const updateSql = `
       UPDATE orders
       SET status = 'verified',
@@ -203,7 +263,6 @@ export async function manualVerify(orderId, adminId, notes = '') {
     `;
     await query(updateSql, [adminId, orderId]);
 
-    // Log manual verification
     await logVerification(orderId, 'manual', { adminId, notes }, true);
 
     return { success: true };
@@ -232,5 +291,6 @@ export async function isOrderVerified(orderId) {
 export default {
   verifySlip,
   manualVerify,
-  isOrderVerified
+  isOrderVerified,
+  getUsageStats
 };
