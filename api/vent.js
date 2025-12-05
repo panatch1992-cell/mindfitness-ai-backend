@@ -4,8 +4,8 @@
  * Accepts vent text, runs AI risk-check, returns analysis and empathetic response.
  */
 
-import { setCORSHeaders, getOpenAIKey } from '../utils/config.js';
-import { callOpenAI, sanitizeInput, parseJSONResponse } from '../utils/openai.js';
+import { setCORSHeaders, getAnthropicKey } from '../utils/config.js';
+import { callClaude, sanitizeInput, parseJSONResponse } from '../utils/claude.js';
 import { normalizeLanguage, getLanguageInstruction } from '../utils/language.js';
 import { validateVentText, validateRiskLevel } from '../utils/validation.js';
 import { detectCrisis, createCrisisResponse } from '../utils/crisis.js';
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
 
   try {
     // Validate API key
-    const keyResult = getOpenAIKey();
+    const keyResult = getAnthropicKey();
     if (!keyResult.valid) {
       console.error('API Key Error:', keyResult.error);
       return res.status(500).json({ success: false, error: 'Service configuration error' });
@@ -88,14 +88,15 @@ Based ONLY on the content between USER_VENT_START and USER_VENT_END markers, pro
 Return strictly JSON:
 {"analysis": {"risk":"low", "tags":["sad","lonely"]}, "reply":"..."}`;
 
-    const result = await callOpenAI({
+    const result = await callClaude({
+      systemPrompt: 'You are an empathetic, safety-first assistant analyzing user vent messages. Return strictly JSON.',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
       maxTokens: 400,
     });
 
     if (!result.success) {
-      console.error('OpenAI Error:', result.error);
+      console.error('Claude Error:', result.error);
       return res.json({
         success: true,
         analysis: { risk: 'unknown', tags: [] },

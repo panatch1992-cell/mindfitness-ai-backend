@@ -17,26 +17,26 @@ export const ALLOWED_ORIGINS = [
 ].filter(Boolean);
 
 /**
- * Validates and returns the OpenAI API key
+ * Validates and returns the Anthropic (Claude) API key
  * @returns {{ valid: boolean, key?: string, error?: string }}
  */
-export function getOpenAIKey() {
-  const key = process.env.OPENAI_API_KEY;
+export function getAnthropicKey() {
+  const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
-    return { valid: false, error: 'OPENAI_API_KEY is not configured' };
+    return { valid: false, error: 'ANTHROPIC_API_KEY is not configured' };
   }
-  if (!key.startsWith('sk-')) {
-    return { valid: false, error: 'Invalid OPENAI_API_KEY format' };
+  if (!key.startsWith('sk-ant-')) {
+    return { valid: false, error: 'Invalid ANTHROPIC_API_KEY format' };
   }
   return { valid: true, key };
 }
 
 /**
- * Gets the OpenAI model to use
+ * Gets the Claude model to use
  * @returns {string}
  */
-export function getOpenAIModel() {
-  return process.env.OPENAI_MODEL || 'gpt-4o-mini';
+export function getClaudeModel() {
+  return process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
 }
 
 /**

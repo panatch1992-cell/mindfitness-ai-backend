@@ -4,8 +4,8 @@
  * Main endpoint for MindBot AI chat functionality.
  */
 
-import { setCORSHeaders, getOpenAIKey } from '../utils/config.js';
-import { callOpenAI, sanitizeInput } from '../utils/openai.js';
+import { setCORSHeaders, getAnthropicKey } from '../utils/config.js';
+import { callClaude, sanitizeInput } from '../utils/claude.js';
 import { detectCrisis, createCrisisResponse } from '../utils/crisis.js';
 import { getLanguageInstruction, normalizeLanguage } from '../utils/language.js';
 import { getCaseInstruction, getModeInstruction, getMaxTokens } from '../utils/modes.js';
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
 
   try {
     // Validate API key exists
-    const keyResult = getOpenAIKey();
+    const keyResult = getAnthropicKey();
     if (!keyResult.valid) {
       console.error('API Key Error:', keyResult.error);
       return res.status(500).json({ error: 'Service configuration error' });
@@ -160,9 +160,7 @@ export default async function handler(req, res) {
     const modeInstruction = getModeInstruction(isPremium);
     const maxTokens = getMaxTokens(isPremium);
 
-    const systemPrompt = {
-      role: 'system',
-      content: `
+    const systemPrompt = `
       [IDENTITY]
       You are 'MindBot' (or 'น้องมายด์'), a Thai Peer Supporter.
       **PRONOUNS:** "เรา", "MindBot", "หมอ". (No "ผม/ดิฉัน").
@@ -177,17 +175,17 @@ export default async function handler(req, res) {
       2. **Reflect:** Challenge it.
       3. **Outcome:** Self-Compassion.
 
-      [SAFETY] If suicidal, reply ONLY with contact 1323.`,
-    };
+      [SAFETY] If suicidal, reply ONLY with contact 1323.`;
 
-    const result = await callOpenAI({
-      messages: [systemPrompt, ...messages],
+    const result = await callClaude({
+      systemPrompt,
+      messages,
       temperature: 0.8,
       maxTokens,
     });
 
     if (!result.success) {
-      console.error('OpenAI Error:', result.error);
+      console.error('Claude Error:', result.error);
       return res.json({
         crisis: false,
         reply: getErrorMessage(finalLang),
@@ -246,8 +244,9 @@ async function handleWorkshopMode({ langInstruction, targetGroup, caseType, isPr
     maxTokens = 600;
   }
 
-  const result = await callOpenAI({
-    messages: [{ role: 'system', content: workshopPrompt }],
+  const result = await callClaude({
+    systemPrompt: workshopPrompt,
+    messages: [{ role: 'user', content: 'Please design the workshop.' }],
     temperature: 0.7,
     maxTokens,
   });
@@ -286,8 +285,9 @@ async function handleToolkitMode({ langInstruction, caseType, messages, finalLan
   5. **If user wants more, recommend MindBot.**
   `;
 
-  const result = await callOpenAI({
-    messages: [{ role: 'system', content: toolkitPrompt }, ...messages],
+  const result = await callClaude({
+    systemPrompt: toolkitPrompt,
+    messages,
     temperature: 0.7,
     maxTokens: 500,
   });
@@ -324,8 +324,9 @@ async function handleVentMode({ langInstruction, messages, finalLang }) {
   - 2–3 sentences max.
   `;
 
-  const result = await callOpenAI({
-    messages: [{ role: 'system', content: ventPrompt }, ...messages],
+  const result = await callClaude({
+    systemPrompt: ventPrompt,
+    messages,
     temperature: 0.6,
     maxTokens: 120,
   });
