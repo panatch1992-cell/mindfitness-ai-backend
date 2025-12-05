@@ -9,30 +9,50 @@ import { describe, it, expect } from 'vitest';
 import {
   crisisPatterns,
   crisisResources,
+  crisisMessages,
   detectCrisis,
   createCrisisResponse,
   handleCrisisCheck,
+  getCrisisMessage,
+  createLocalizedCrisisResponse,
 } from '../utils/crisis.js';
 
 describe('Crisis Detection Module', () => {
   describe('crisisPatterns', () => {
     it('should have patterns for Thai language', () => {
-      const thaiPatterns = crisisPatterns.filter(p => p.source.includes('ฆ่าตัวตาย') || p.source.includes('อยากตาย'));
-      expect(thaiPatterns.length).toBe(2);
+      const thaiPatterns = crisisPatterns.filter(p =>
+        p.source.includes('ฆ่าตัวตาย') ||
+        p.source.includes('อยากตาย') ||
+        p.source.includes('ไม่อยากอยู่') ||
+        p.source.includes('ไม่อยากมีชีวิต') ||
+        p.source.includes('ทำร้ายตัวเอง')
+      );
+      expect(thaiPatterns.length).toBeGreaterThanOrEqual(3);
     });
 
     it('should have patterns for English language', () => {
-      const englishPatterns = crisisPatterns.filter(p => p.source.includes('suicide') || p.source.includes('kill myself'));
-      expect(englishPatterns.length).toBe(2);
+      const englishPatterns = crisisPatterns.filter(p =>
+        p.source.includes('suicide') ||
+        p.source.includes('kill myself') ||
+        p.source.includes('end my life') ||
+        p.source.includes('hurt myself') ||
+        p.source.includes('want to die')
+      );
+      expect(englishPatterns.length).toBeGreaterThanOrEqual(4);
     });
 
     it('should have patterns for Chinese language', () => {
-      const chinesePatterns = crisisPatterns.filter(p => p.source.includes('自杀') || p.source.includes('想死'));
-      expect(chinesePatterns.length).toBe(2);
+      const chinesePatterns = crisisPatterns.filter(p =>
+        p.source.includes('自杀') ||
+        p.source.includes('想死') ||
+        p.source.includes('不想活') ||
+        p.source.includes('自残')
+      );
+      expect(chinesePatterns.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('should have exactly 6 crisis patterns', () => {
-      expect(crisisPatterns.length).toBe(6);
+    it('should have comprehensive crisis patterns', () => {
+      expect(crisisPatterns.length).toBeGreaterThanOrEqual(10);
     });
   });
 
@@ -227,6 +247,66 @@ describe('Crisis Detection Module', () => {
     it('should return null for null input', () => {
       const result = handleCrisisCheck(null);
       expect(result).toBeNull();
+    });
+  });
+
+  describe('crisisMessages', () => {
+    it('should have Thai message', () => {
+      expect(crisisMessages.th).toBeDefined();
+      expect(crisisMessages.th).toContain('1323');
+    });
+
+    it('should have English message', () => {
+      expect(crisisMessages.en).toBeDefined();
+      expect(crisisMessages.en).toContain('1323');
+    });
+
+    it('should have Chinese message', () => {
+      expect(crisisMessages.cn).toBeDefined();
+      expect(crisisMessages.cn).toContain('1323');
+    });
+  });
+
+  describe('getCrisisMessage()', () => {
+    it('should return Thai message for th', () => {
+      const message = getCrisisMessage('th');
+      expect(message).toContain('เราเป็นห่วง');
+    });
+
+    it('should return English message for en', () => {
+      const message = getCrisisMessage('en');
+      expect(message).toContain('worried about you');
+    });
+
+    it('should return Chinese message for cn', () => {
+      const message = getCrisisMessage('cn');
+      expect(message).toContain('担心');
+    });
+
+    it('should default to Thai for unknown language', () => {
+      const message = getCrisisMessage('unknown');
+      expect(message).toBe(crisisMessages.th);
+    });
+  });
+
+  describe('createLocalizedCrisisResponse()', () => {
+    it('should return crisis: true', () => {
+      const response = createLocalizedCrisisResponse('th');
+      expect(response.crisis).toBe(true);
+    });
+
+    it('should include localized message', () => {
+      const thResponse = createLocalizedCrisisResponse('th');
+      expect(thResponse.message).toContain('เราเป็นห่วง');
+
+      const enResponse = createLocalizedCrisisResponse('en');
+      expect(enResponse.message).toContain('worried');
+    });
+
+    it('should include resources', () => {
+      const response = createLocalizedCrisisResponse('en');
+      expect(response.resources).toBeDefined();
+      expect(response.resources.length).toBeGreaterThan(0);
     });
   });
 });
