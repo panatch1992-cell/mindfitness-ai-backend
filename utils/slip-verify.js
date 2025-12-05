@@ -1,18 +1,17 @@
 /**
  * Slip Verification Utility
  *
- * Uses SlipOK API (slipok.com) for automatic Thai bank slip verification
- * Free Plan: 50 requests/month
+ * Uses Slip2Go API (slip2go.com) for automatic Thai bank slip verification
+ * Free Plan: 100 slips/month
  * Supports PromptPay, bank transfers, and mobile banking slips
  */
 
 import { query, queryOne } from './database.js';
 
-// SlipOK API Configuration
-const SLIPOK_CONFIG = {
-  apiUrl: 'https://api.slipok.com/api/line/apikey',
-  apiKey: process.env.SLIPOK_API_KEY || '',
-  branchId: process.env.SLIPOK_BRANCH_ID || ''
+// Slip2Go API Configuration
+const SLIP2GO_CONFIG = {
+  apiUrl: 'https://connect.slip2go.com/api/verify-slip/qr-base64/info',
+  secretKey: process.env.SLIP2GO_SECRET_KEY || process.env.SLIPOK_API_KEY || ''
 };
 
 // Expected PromptPay receiver info for validation
@@ -30,9 +29,9 @@ const RECEIVER_CONFIG = {
  * @returns {Promise<{success: boolean, data?: object, error?: string}>}
  */
 export async function verifySlip(slipData, expectedAmount, orderId) {
-  // Check if SlipOK is configured
-  if (!SLIPOK_CONFIG.apiKey || !SLIPOK_CONFIG.branchId) {
-    console.warn('SlipOK API not configured, falling back to OTP verification');
+  // Check if Slip2Go is configured
+  if (!SLIP2GO_CONFIG.secretKey) {
+    console.warn('Slip2Go API not configured, falling back to OTP verification');
     return {
       success: false,
       requiresManual: true,
@@ -41,57 +40,34 @@ export async function verifySlip(slipData, expectedAmount, orderId) {
   }
 
   try {
-    // Extract base64 data and mime type
-    const matches = slipData.match(/^data:(.+);base64,(.+)$/);
-    if (!matches) {
-      return {
-        success: false,
-        error: 'Invalid image format'
-      };
+    // Extract base64 data
+    let base64Image = slipData;
+
+    // Remove data URL prefix if present (keep just the base64 part)
+    if (slipData.includes(',')) {
+      base64Image = slipData.split(',')[1];
     }
 
-    const mimeType = matches[1];
-    const base64Data = matches[2];
-
-    // Convert base64 to Buffer
-    const imageBuffer = Buffer.from(base64Data, 'base64');
-
-    // Create form data for SlipOK API
-    // SlipOK accepts multipart/form-data with 'files' field
-    const boundary = '----FormBoundary' + Math.random().toString(36).substring(2);
-    const fileName = `slip.${mimeType.split('/')[1] || 'png'}`;
-
-    const body = Buffer.concat([
-      Buffer.from(
-        `--${boundary}\r\n` +
-        `Content-Disposition: form-data; name="files"; filename="${fileName}"\r\n` +
-        `Content-Type: ${mimeType}\r\n\r\n`
-      ),
-      imageBuffer,
-      Buffer.from(`\r\n--${boundary}--\r\n`)
-    ]);
-
-    // Call SlipOK API
-    const response = await fetch(
-      `${SLIPOK_CONFIG.apiUrl}/${SLIPOK_CONFIG.branchId}`,
-      {
-        method: 'POST',
-        headers: {
-          'x-authorization': SLIPOK_CONFIG.apiKey,
-          'Content-Type': `multipart/form-data; boundary=${boundary}`
-        },
-        body: body
-      }
-    );
+    // Call Slip2Go API with base64 image
+    const response = await fetch(SLIP2GO_CONFIG.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SLIP2GO_CONFIG.secretKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        image: base64Image
+      })
+    });
 
     const result = await response.json();
 
     // Log verification attempt
-    await logVerification(orderId, 'slipok', result, response.ok && result.success);
+    await logVerification(orderId, 'slip2go', result, response.ok && result.success);
 
     // Check API response
     if (!response.ok) {
-      console.error('SlipOK API error:', response.status, result);
+      console.error('Slip2Go API error:', response.status, result);
       return {
         success: false,
         error: result.message || `API Error: ${response.status}`,
@@ -107,8 +83,8 @@ export async function verifySlip(slipData, expectedAmount, orderId) {
       };
     }
 
-    // Extract slip data
-    const slipInfo = result.data;
+    // Extract slip data from Slip2Go response
+    const slipInfo = result.data || result;
 
     // Validate amount matches
     const slipAmount = parseFloat(slipInfo.amount);
@@ -155,7 +131,7 @@ export async function verifySlip(slipData, expectedAmount, orderId) {
     console.error('Slip verification error:', error);
 
     // Log failed attempt
-    await logVerification(orderId, 'slipok', { error: error.message }, false);
+    await logVerification(orderId, 'slip2go', { error: error.message }, false);
 
     return {
       success: false,
@@ -222,7 +198,7 @@ async function logVerification(orderId, method, response, isSuccess) {
 }
 
 /**
- * Check daily/monthly usage for SlipOK free plan
+ * Check daily/monthly usage for Slip2Go free plan (100 slips/month)
  */
 export async function getUsageStats() {
   try {
@@ -234,18 +210,18 @@ export async function getUsageStats() {
         COUNT(CASE WHEN DATE(request_time) = ? THEN 1 END) as today_count,
         COUNT(CASE WHEN request_time >= ? THEN 1 END) as month_count
       FROM slip_verifications
-      WHERE verification_method = 'slipok'
+      WHERE verification_method = 'slip2go'
     `, [today, monthStart]);
 
     return {
       today: stats?.today_count || 0,
       month: stats?.month_count || 0,
-      freeLimit: 50,
-      remaining: Math.max(0, 50 - (stats?.month_count || 0))
+      freeLimit: 100,
+      remaining: Math.max(0, 100 - (stats?.month_count || 0))
     };
   } catch (error) {
     console.error('Error getting usage stats:', error);
-    return { today: 0, month: 0, freeLimit: 50, remaining: 50 };
+    return { today: 0, month: 0, freeLimit: 100, remaining: 100 };
   }
 }
 
