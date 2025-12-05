@@ -6,7 +6,7 @@
 
 import { setCORSHeaders, getAnthropicKey } from '../utils/config.js';
 import { callClaude, sanitizeInput, parseJSONResponse } from '../utils/claude.js';
-import { normalizeLanguage, getLanguageInstruction } from '../utils/language.js';
+import { normalizeLanguage, getLanguageInstruction, detectLanguage, getAutoTranslationInstruction } from '../utils/language.js';
 import { validateVentText, validateRiskLevel } from '../utils/validation.js';
 import { detectCrisis, createCrisisResponse } from '../utils/crisis.js';
 
@@ -58,8 +58,13 @@ export default async function handler(req, res) {
     }
 
     const text = sanitizeInput(textValidation.text);
-    const lang = normalizeLanguage(req.body?.lang);
-    const langInstruction = getLanguageInstruction(lang);
+
+    // Auto-detect language from user vent text
+    const detectedLang = detectLanguage(text);
+    const specifiedLang = normalizeLanguage(req.body?.lang);
+    const finalLang = detectedLang || specifiedLang;
+    const langInstruction = getLanguageInstruction(finalLang);
+    const autoTranslation = getAutoTranslationInstruction(finalLang);
 
     // Check for crisis keywords first
     if (detectCrisis(text)) {
@@ -75,6 +80,7 @@ export default async function handler(req, res) {
 
     // Build prompt - user input is now safely encapsulated
     const prompt = `You are an empathetic, safety-first assistant analyzing a user's vent message.
+${autoTranslation}
 ${langInstruction}
 
 [USER_VENT_START]
@@ -82,14 +88,14 @@ ${text}
 [USER_VENT_END]
 
 Based ONLY on the content between USER_VENT_START and USER_VENT_END markers, provide:
-1) "analysis": classification with "risk": "none"|"low"|"medium"|"high" and "tags": [emotion keywords]
-2) "reply": a brief empathetic reply (1-3 sentences)
+1) "analysis": classification with "risk": "none"|"low"|"medium"|"high" and "tags": [emotion keywords in the detected language]
+2) "reply": a brief empathetic reply (1-3 sentences) in the same language as the user's message
 
 Return strictly JSON:
 {"analysis": {"risk":"low", "tags":["sad","lonely"]}, "reply":"..."}`;
 
     const result = await callClaude({
-      systemPrompt: 'You are an empathetic, safety-first assistant analyzing user vent messages. Return strictly JSON.',
+      systemPrompt: `You are an empathetic, safety-first assistant analyzing user vent messages. ${autoTranslation} Return strictly JSON.`,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
       maxTokens: 400,
@@ -100,7 +106,7 @@ Return strictly JSON:
       return res.json({
         success: true,
         analysis: { risk: 'unknown', tags: [] },
-        reply: getErrorMessage(lang),
+        reply: getErrorMessage(finalLang),
       });
     }
 

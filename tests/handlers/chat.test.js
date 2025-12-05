@@ -81,22 +81,22 @@ describe('Chat Handler Logic', () => {
   describe('Language Configuration', () => {
     it('should return Thai instruction by default', () => {
       const instruction = getLanguageInstruction('th');
-      expect(instruction).toContain('Thai');
+      expect(instruction).toContain('THAI');
     });
 
     it('should return English instruction', () => {
       const instruction = getLanguageInstruction('en');
-      expect(instruction).toContain('English');
+      expect(instruction).toContain('ENGLISH');
     });
 
     it('should return Chinese instruction', () => {
       const instruction = getLanguageInstruction('cn');
-      expect(instruction).toContain('Chinese');
+      expect(instruction).toContain('CHINESE');
     });
 
     it('should default to Thai for unknown language', () => {
       const instruction = getLanguageInstruction('unknown');
-      expect(instruction).toContain('Thai');
+      expect(instruction).toContain('THAI');
     });
   });
 

@@ -8,6 +8,7 @@ import {
   DEFAULT_LANGUAGE,
   languageInstructions,
   getLanguageInstruction,
+  getAutoTranslationInstruction,
   isValidLanguage,
   normalizeLanguage,
   detectLanguage,
@@ -37,19 +38,20 @@ describe('Language Configuration Module', () => {
   describe('getLanguageInstruction()', () => {
     it('should return Thai instruction for "th"', () => {
       const instruction = getLanguageInstruction('th');
-      expect(instruction).toContain('Thai');
-      expect(instruction).toContain('MindBot');
+      expect(instruction).toContain('THAI');
+      expect(instruction).toContain('ภาษาไทย');
     });
 
     it('should return English instruction for "en"', () => {
       const instruction = getLanguageInstruction('en');
-      expect(instruction).toContain('English');
-      expect(instruction).toContain('Professional');
+      expect(instruction).toContain('ENGLISH');
+      expect(instruction).toContain('professional');
     });
 
     it('should return Chinese instruction for "cn"', () => {
       const instruction = getLanguageInstruction('cn');
-      expect(instruction).toContain('Chinese');
+      expect(instruction).toContain('CHINESE');
+      expect(instruction).toContain('简体中文');
     });
 
     it('should be case insensitive', () => {
@@ -72,6 +74,32 @@ describe('Language Configuration Module', () => {
 
     it('should return Thai instruction for empty string', () => {
       expect(getLanguageInstruction('')).toBe(languageInstructions.th);
+    });
+  });
+
+  describe('getAutoTranslationInstruction()', () => {
+    it('should return Thai auto-translation instruction', () => {
+      const instruction = getAutoTranslationInstruction('th');
+      expect(instruction).toContain('Thai');
+      expect(instruction).toContain('AUTO-TRANSLATION');
+      expect(instruction).toContain('CRITICAL');
+    });
+
+    it('should return English auto-translation instruction', () => {
+      const instruction = getAutoTranslationInstruction('en');
+      expect(instruction).toContain('English');
+      expect(instruction).toContain('MUST respond ONLY');
+    });
+
+    it('should return Chinese auto-translation instruction', () => {
+      const instruction = getAutoTranslationInstruction('cn');
+      expect(instruction).toContain('Chinese');
+      expect(instruction).toContain('简体中文');
+    });
+
+    it('should default to Thai for unknown language', () => {
+      const instruction = getAutoTranslationInstruction('unknown');
+      expect(instruction).toContain('Thai');
     });
   });
 

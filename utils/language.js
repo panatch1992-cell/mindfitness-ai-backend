@@ -1,20 +1,55 @@
 /**
  * Language Configuration Utility
  *
- * Handles multi-language support for Thai, English, and Chinese.
+ * Handles multi-language support with auto-detection and translation.
  */
 
 export const SUPPORTED_LANGUAGES = ['th', 'en', 'cn'];
 export const DEFAULT_LANGUAGE = 'th';
 
 /**
- * Language-specific instructions for the AI
+ * Language-specific instructions for the AI (enhanced for auto-translation)
  */
 export const languageInstructions = {
-  th: "LANGUAGE: Thai. Tone: Warm, natural (ใช้ 'เรา/MindBot' แทน 'ผม').",
-  en: "LANGUAGE: English only. Tone: Professional yet empathetic.",
-  cn: "LANGUAGE: Chinese (Simplified). Tone: Warm, respectful, professional.",
+  th: `[LANGUAGE: THAI]
+- ตอบเป็นภาษาไทยเท่านั้น
+- ใช้สรรพนาม "เรา" หรือ "MindBot" (ไม่ใช้ "ผม/ดิฉัน")
+- น้ำเสียงอบอุ่น เป็นกันเอง แต่เป็นมืออาชีพ
+- ใช้คำลงท้าย "ค่ะ/นะคะ" หรือ "ครับ/นะครับ" ตามความเหมาะสม`,
+
+  en: `[LANGUAGE: ENGLISH]
+- Respond in English only
+- Use professional yet empathetic tone
+- Be warm and supportive
+- Use inclusive pronouns`,
+
+  cn: `[LANGUAGE: CHINESE]
+- 只用简体中文回复
+- 使用温暖、专业的语气
+- 保持尊重和支持的态度`,
 };
+
+/**
+ * Auto-translation instruction - forces Claude to respond in detected language
+ * @param {string} lang - Detected language code
+ * @returns {string} - Auto-translation instruction
+ */
+export function getAutoTranslationInstruction(lang) {
+  const langNames = {
+    th: 'Thai (ภาษาไทย)',
+    en: 'English',
+    cn: 'Chinese (简体中文)',
+  };
+
+  const langName = langNames[lang] || langNames[DEFAULT_LANGUAGE];
+
+  return `[AUTO-TRANSLATION RULE]
+CRITICAL: You MUST respond ONLY in ${langName}.
+- Detect the user's language from their message
+- Always match your response language to the user's language
+- Never mix languages in your response
+- All content including greetings, explanations, and suggestions must be in ${langName}`;
+}
 
 /**
  * Gets the language instruction for AI prompts
