@@ -5,6 +5,14 @@
  */
 
 import { setCORSHeaders } from '../utils/config.js';
+import generatePayload from 'promptpay-qr';
+import QRCode from 'qrcode';
+
+// PromptPay account configuration
+const PROMPTPAY_CONFIG = {
+  accountId: process.env.PROMPTPAY_ID || '0812345678',
+  accountName: 'นายพณัฐ เชื้อประเสริฐศักดิ์'
+};
 
 // Platform settings
 const PLATFORM_CONFIG = {
@@ -218,15 +226,29 @@ async function handleCreateBooking(req, res) {
     createdAt: new Date().toISOString()
   };
 
+  // Generate Dynamic PromptPay QR Code
+  let qrCodeDataUrl = null;
+  try {
+    const payload = generatePayload(PROMPTPAY_CONFIG.accountId, { amount });
+    qrCodeDataUrl = await QRCode.toDataURL(payload, {
+      errorCorrectionLevel: 'M',
+      type: 'image/png',
+      width: 300,
+      margin: 2
+    });
+  } catch (qrError) {
+    console.error('QR Generation Error:', qrError);
+  }
+
   return res.json({
     success: true,
     booking,
     message: 'สร้างการจองสำเร็จ กรุณาชำระเงินภายใน 30 นาที',
     paymentInfo: {
       amount,
-      accountName: 'นายพณัฐ เชื้อประเสริฐศักดิ์',
-      bankName: 'กรุงไทย',
-      qrCodeUrl: '/images/qr-consultation.png'
+      accountName: PROMPTPAY_CONFIG.accountName,
+      qrCodeDataUrl, // Dynamic QR code as base64
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString()
     }
   });
 }
