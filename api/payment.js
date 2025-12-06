@@ -11,6 +11,7 @@ import {
   verifyOTP,
   verifyPremiumByPhone,
   query,
+  isDatabaseConfigured,
 } from '../utils/database.js';
 
 export default async function handler(req, res) {
@@ -21,8 +22,28 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // Allow GET for health check
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      service: 'payment',
+      status: 'ok',
+      databaseConfigured: isDatabaseConfigured(),
+    });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Check if database is configured
+  if (!isDatabaseConfigured()) {
+    console.warn('Payment API called but database is not configured');
+    // Return a mock response for testing
+    return res.status(200).json({
+      success: true,
+      message: 'Database not configured. This is a test response.',
+      mockMode: true,
+    });
   }
 
   try {

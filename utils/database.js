@@ -45,10 +45,22 @@ export function validateDatabaseConfig() {
 }
 
 /**
+ * Checks if database is configured
+ * @returns {boolean}
+ */
+export function isDatabaseConfigured() {
+  return !!(process.env.DB_HOST && process.env.DB_USER);
+}
+
+/**
  * Gets or creates the database connection pool
  * @returns {Promise<mysql.Pool>}
  */
 export async function getPool() {
+  if (!isDatabaseConfigured()) {
+    throw new Error('Database not configured. Set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME environment variables.');
+  }
+
   if (!pool) {
     const config = getDatabaseConfig();
     pool = mysql.createPool(config);

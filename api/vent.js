@@ -9,7 +9,7 @@ import { callClaude, sanitizeInput, parseJSONResponse } from '../utils/claude.js
 import { normalizeLanguage, getLanguageInstruction, detectLanguage, getAutoTranslationInstruction } from '../utils/language.js';
 import { validateVentText, validateRiskLevel } from '../utils/validation.js';
 import { detectCrisis, createCrisisResponse } from '../utils/crisis.js';
-import { saveVentPost } from '../utils/database.js';
+import { saveVentPost, isDatabaseConfigured } from '../utils/database.js';
 
 /**
  * Error messages by language
@@ -122,11 +122,13 @@ Return strictly JSON:
         tags: Array.isArray(parsed.analysis.tags) ? parsed.analysis.tags : [],
       };
 
-      // Save vent to database (non-blocking)
-      const sessionId = req.body?.sessionId || `anon_${Date.now()}`;
-      saveVentPost(text, sessionId, analysisResult).catch(err => {
-        console.error('Failed to save vent post:', err);
-      });
+      // Save vent to database (non-blocking) - only if database is configured
+      if (isDatabaseConfigured()) {
+        const sessionId = req.body?.sessionId || `anon_${Date.now()}`;
+        saveVentPost(text, sessionId, analysisResult).catch(err => {
+          console.error('Failed to save vent post:', err);
+        });
+      }
 
       return res.json({
         success: true,

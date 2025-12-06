@@ -15,6 +15,7 @@ import {
   saveChatMessage,
   getChatHistory,
   closeChatRoom,
+  isDatabaseConfigured,
 } from '../utils/database.js';
 
 export default async function handler(req, res) {
@@ -25,8 +26,25 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // Allow GET for health check
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      service: 'private-chat',
+      status: 'ok',
+      databaseConfigured: isDatabaseConfigured(),
+    });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Check if database is configured
+  if (!isDatabaseConfigured()) {
+    return res.status(503).json({
+      error: 'Private chat requires database configuration',
+      message: 'Database not configured. Please set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME environment variables.',
+    });
   }
 
   try {
