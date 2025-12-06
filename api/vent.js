@@ -9,6 +9,7 @@ import { callClaude, sanitizeInput, parseJSONResponse } from '../utils/claude.js
 import { normalizeLanguage, getLanguageInstruction, detectLanguage, getAutoTranslationInstruction } from '../utils/language.js';
 import { validateVentText, validateRiskLevel } from '../utils/validation.js';
 import { detectCrisis, createCrisisResponse } from '../utils/crisis.js';
+import { saveVentPost } from '../utils/database.js';
 
 /**
  * Error messages by language
@@ -116,12 +117,20 @@ Return strictly JSON:
     if (parsed && parsed.analysis && parsed.reply) {
       // Validate risk level
       const validatedRisk = validateRiskLevel(parsed.analysis.risk);
+      const analysisResult = {
+        risk: validatedRisk,
+        tags: Array.isArray(parsed.analysis.tags) ? parsed.analysis.tags : [],
+      };
+
+      // Save vent to database (non-blocking)
+      const sessionId = req.body?.sessionId || `anon_${Date.now()}`;
+      saveVentPost(text, sessionId, analysisResult).catch(err => {
+        console.error('Failed to save vent post:', err);
+      });
+
       return res.json({
         success: true,
-        analysis: {
-          risk: validatedRisk,
-          tags: Array.isArray(parsed.analysis.tags) ? parsed.analysis.tags : [],
-        },
+        analysis: analysisResult,
         reply: parsed.reply,
       });
     }
@@ -130,7 +139,7 @@ Return strictly JSON:
     return res.json({
       success: true,
       analysis: { risk: 'unknown', tags: [] },
-      reply: result.reply || getErrorMessage(lang),
+      reply: result.reply || getErrorMessage(finalLang),
     });
 
   } catch (err) {
