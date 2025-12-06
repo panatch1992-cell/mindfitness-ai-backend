@@ -2,6 +2,7 @@
  * Private Chat API Handler
  *
  * Handles peer-to-peer chat matching and messaging with database persistence.
+ * Aligned with database schema.
  */
 
 import { setCORSHeaders } from '../utils/config.js';
@@ -10,9 +11,10 @@ import {
   addToQueue,
   removeFromQueue,
   createChatRoom,
+  joinChatRoom,
   saveChatMessage,
   getChatHistory,
-  query,
+  closeChatRoom,
 } from '../utils/database.js';
 
 export default async function handler(req, res) {
@@ -28,7 +30,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { action, sessionId, roomId, message } = req.body;
+    const { action, sessionId, roomId, message, nickname } = req.body;
 
     // Validate sessionId for most actions
     if (action !== 'health' && !sessionId) {
@@ -37,7 +39,7 @@ export default async function handler(req, res) {
 
     switch (action) {
       case 'find-match':
-        return await handleFindMatch(res, sessionId);
+        return await handleFindMatch(res, sessionId, nickname);
 
       case 'send-message':
         return await handleSendMessage(res, roomId, sessionId, message);
@@ -63,28 +65,35 @@ export default async function handler(req, res) {
 /**
  * Handles peer matching
  */
-async function handleFindMatch(res, sessionId) {
+async function handleFindMatch(res, sessionId, nickname = 'Anonymous') {
   // Check if there's a waiting peer
   const waitingPeer = await findWaitingPeer(sessionId);
 
   if (waitingPeer.success && waitingPeer.data) {
-    // Found a match! Create a room
+    // Found a match! Create a room with the waiting peer as user1
     const roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create room in database
-    await createChatRoom(roomId, 'peer');
+    // Create room with waiting peer as user1
+    await createChatRoom(roomId, waitingPeer.data.session_id, {
+      nickname: waitingPeer.data.nickname || 'Anonymous',
+    });
 
-    // Remove matched peer from queue
-    await removeFromQueue(waitingPeer.data.session_id);
+    // Join room as user2 (current user)
+    await joinChatRoom(roomId, sessionId, nickname);
+
+    // Remove matched peer from queue with room ID
+    await removeFromQueue(waitingPeer.data.session_id, roomId);
 
     return res.status(200).json({
       matched: true,
       roomId: roomId,
+      partnerId: waitingPeer.data.session_id,
+      partnerNickname: waitingPeer.data.nickname || 'Anonymous',
       message: 'พบคู่สนทนาแล้ว! เริ่มพูดคุยได้เลย',
     });
   } else {
     // No match found, add to queue
-    await addToQueue(sessionId);
+    await addToQueue(sessionId, { nickname, role: 'seeker' });
 
     return res.status(200).json({
       matched: false,
@@ -151,11 +160,8 @@ async function handleLeaveRoom(res, roomId, sessionId) {
     return res.status(400).json({ error: 'Room ID is required' });
   }
 
-  // Update room status
-  await query(
-    `UPDATE private_chat_rooms SET status = 'closed', ended_at = NOW() WHERE room_id = ?`,
-    [roomId]
-  );
+  // Close the room (status = 'ended')
+  await closeChatRoom(roomId);
 
   // Remove from queue if still waiting
   await removeFromQueue(sessionId);
