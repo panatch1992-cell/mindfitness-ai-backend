@@ -263,10 +263,13 @@
       if (data.crisis) {
         appendMessage('system', "⚠️ หากรู้สึกไม่ไหว โปรดติดต่อ 1323");
         if (data.resources) data.resources.forEach(r => appendMessage('bot', `📞 ${r.name}: ${r.info}`));
-      } else if (data.ai?.choices) {
-        const reply = data.ai.choices[0].message.content;
+      } else if (data.reply) {
+        // Claude API response format
+        const reply = data.reply;
         appendMessage('bot', reply);
         messageHistory.push({ role: "assistant", content: reply });
+      } else if (data.error) {
+        appendMessage('system', `เกิดข้อผิดพลาด: ${data.error}`);
       } else { appendMessage('bot', "ระบบไม่ตอบสนอง"); }
     } catch (err) {
       document.getElementById('mf-loading')?.remove();

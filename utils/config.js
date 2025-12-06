@@ -11,6 +11,8 @@ export const ALLOWED_ORIGINS = [
   'https://mindfitness.com',
   'https://www.mindfitness.com',
   'https://mindfitness-ai-backend-4lfy.vercel.app',
+  // Vercel preview URLs
+  /^https:\/\/mindfitness-ai-backend.*\.vercel\.app$/,
   // Add localhost for development
   process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : null,
   process.env.NODE_ENV === 'development' ? 'http://localhost:5173' : null,
@@ -46,7 +48,16 @@ export function getClaudeModel() {
  */
 export function isAllowedOrigin(origin) {
   if (!origin) return false;
-  return ALLOWED_ORIGINS.includes(origin);
+
+  for (const allowed of ALLOWED_ORIGINS) {
+    // Handle regex patterns
+    if (allowed instanceof RegExp) {
+      if (allowed.test(origin)) return true;
+    } else if (allowed === origin) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

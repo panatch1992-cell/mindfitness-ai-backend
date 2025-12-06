@@ -1,8 +1,63 @@
 <!doctype html>
 <html>
-<head><meta charset='utf-8'><title>AI Therapist Backend</title></head>
+<head>
+  <meta charset='utf-8'>
+  <title>MindFitness AI Backend</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+    h1 { color: #007BFF; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+    .endpoint { background: #e8f4fd; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #007BFF; }
+    .env { background: #fff3cd; padding: 15px; margin: 10px 0; border-radius: 8px; }
+  </style>
+</head>
 <body>
-  <h2>AI Therapist Backend (Pro)</h2>
-  <p>This project provides <code>/api/chat</code>. Set <code>OPENAI_API_KEY</code> in environment variables.</p>
+  <h1>MindFitness AI Backend</h1>
+  <p>Mental health support platform powered by Claude AI (Anthropic).</p>
+
+  <h2>API Endpoints</h2>
+
+  <div class="endpoint">
+    <strong>POST /api/chat</strong> - Main chatbot endpoint
+  </div>
+
+  <div class="endpoint">
+    <strong>POST /api/vent</strong> - Vent wall with AI analysis
+  </div>
+
+  <div class="endpoint">
+    <strong>POST /api/toolkit</strong> - Psychological toolkit generator
+  </div>
+
+  <div class="endpoint">
+    <strong>POST /api/payment</strong> - Payment and premium verification
+  </div>
+
+  <div class="endpoint">
+    <strong>POST /api/private-chat</strong> - Peer-to-peer chat matching
+  </div>
+
+  <div class="endpoint">
+    <strong>POST /api/line</strong> - LINE Bot webhook
+  </div>
+
+  <h2>Environment Variables</h2>
+
+  <div class="env">
+    <p><strong>Required:</strong></p>
+    <ul>
+      <li><code>ANTHROPIC_API_KEY</code> - Claude API key (starts with sk-ant-)</li>
+      <li><code>DB_HOST</code> - Database host</li>
+      <li><code>DB_USER</code> - Database username</li>
+      <li><code>DB_PASSWORD</code> - Database password</li>
+      <li><code>DB_NAME</code> - Database name (default: u786472860_mindfitness_pa)</li>
+    </ul>
+    <p><strong>Optional:</strong></p>
+    <ul>
+      <li><code>LINE_CHANNEL_ACCESS_TOKEN</code> - LINE Bot token</li>
+      <li><code>LINE_CHANNEL_SECRET</code> - LINE Bot secret</li>
+      <li><code>PROMPTPAY_ID</code> - PromptPay phone number</li>
+    </ul>
+  </div>
 </body>
 </html>
